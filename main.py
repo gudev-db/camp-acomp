@@ -2,15 +2,9 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import os
-
-# Verifica e instala pacotes necessários
-try:
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-    PLOTS_AVAILABLE = True
-except ImportError:
-    PLOTS_AVAILABLE = False
-    st.warning("Bibliotecas de visualização não disponíveis. Alguns gráficos serão desabilitados.")
+from google.generativeai import GenerativeModel
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # Configuração da página
 st.set_page_config(
@@ -20,7 +14,12 @@ st.set_page_config(
 )
 
 # Título principal
-st.title("📊 Analytics de Performance de Campanhas Digitais")
+st.title("📊 Analytics Avançado de Campanhas Digitais")
+
+# Verifica se a API key do Gemini está configurada
+gemini_api_key = os.getenv("GEMINI_API_KEY")
+if not gemini_api_key:
+    st.warning("⚠️ Chave da API Gemini não encontrada. O relatório avançado será limitado.")
 
 # Funções do aplicativo ==============================================
 
@@ -66,10 +65,6 @@ def calcular_metricas(df):
 
 def criar_boxplot(df, coluna):
     """Cria um boxplot para uma coluna numérica"""
-    if not PLOTS_AVAILABLE:
-        st.warning("Bibliotecas de visualização não disponíveis. Instale matplotlib e seaborn para ver os gráficos.")
-        return
-    
     try:
         plt.figure(figsize=(8, 4))
         sns.boxplot(x=df[coluna])
@@ -80,46 +75,73 @@ def criar_boxplot(df, coluna):
     except Exception as e:
         st.error(f"Erro ao criar gráfico: {str(e)}")
 
-def gerar_relatorio(df, metricas, colunas_selecionadas):
-    """Gera um relatório analítico das campanhas"""
-    relatorio = f"""
-    # Relatório de Performance de Campanhas
-    **Total de campanhas analisadas:** {len(df)}
+def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio):
+    """Gera um relatório analítico usando LLM"""
+    if not gemini_api_key:
+        return "🔒 Relatório avançado desabilitado. Configure a API key do Gemini para ativar esta funcionalidade."
     
-    ## Resumo Estatístico
-    """
-    
-    for col in colunas_selecionadas:
-        if col in metricas:
-            stats = metricas[col]
-            relatorio += f"""
-            ### {col}
-            - Média: {stats['média']:,.2f}
-            - Mediana: {stats['mediana']:,.2f} 
-            - Intervalo: {stats['min']:,.2f} a {stats['max']:,.2f}
-            - Desvio Padrão: {stats['desvio_padrao']:,.2f}
+    try:
+        # Prepara os dados para o LLM
+        dados_para_llm = ""
+        
+        # Resumo estatístico
+        dados_para_llm += "## Resumo Estatístico:\n"
+        for col in colunas_selecionadas:
+            if col in metricas:
+                stats = metricas[col]
+                dados_para_llm += f"- {col}: Média={stats['média']:.2f}, Mediana={stats['mediana']:.2f}, Min={stats['min']:.2f}, Max={stats['max']:.2f}\n"
+        
+        # Top e bottom performers
+        dados_para_llm += "\n## Melhores Campanhas:\n"
+        for col in colunas_selecionadas[:3]:  # Limita a 3 métricas para não ficar muito longo
+            if col in df.columns:
+                top3 = df.nlargest(3, col)[['Campaign', col]]
+                dados_para_llm += f"- {col}:\n"
+                for _, row in top3.iterrows():
+                    dados_para_llm += f"  - {row['Campaign']}: {row[col]:.2f}\n"
+        
+        # Inicializa o modelo Gemini
+        model = GenerativeModel('gemini-pro')
+        
+        # Prompt específico baseado no tipo de relatório selecionado
+        if tipo_relatorio == "técnico":
+            prompt = f"""
+            Você é um analista de marketing digital senior. Analise os dados de campanhas e gere um relatório TÉCNICO detalhado em português com:
             
+            1. Introdução com visão geral
+            2. Análise de cada métrica selecionada
+            3. Insights sobre desempenho
+            4. Recomendações técnicas específicas
+            5. Conclusão com resumo executivo
+            
+            Dados:
+            {dados_para_llm}
+            
+            Formate o relatório em markdown com títulos e subtítulos. Seja detalhado e técnico.
             """
-    
-    relatorio += "## Campanhas com Melhor Performance\n"
-    for col in colunas_selecionadas:
-        if col in df.columns:
-            top5 = df.nlargest(5, col)[['Campaign', col]]
-            relatorio += f"**Maiores valores em {col}:**\n"
-            for _, row in top5.iterrows():
-                relatorio += f"- {row['Campaign']}: {row[col]:,.2f}\n"
-            relatorio += "\n"
-    
-    relatorio += "## Campanhas com Pior Performance\n"
-    for col in colunas_selecionadas:
-        if col in df.columns:
-            bottom5 = df.nsmallest(5, col)[['Campaign', col]]
-            relatorio += f"**Menores valores em {col}:**\n"
-            for _, row in bottom5.iterrows():
-                relatorio += f"- {row['Campaign']}: {row[col]:,.2f}\n"
-            relatorio += "\n"
-    
-    return relatorio
+        else:
+            prompt = f"""
+            Você é um estrategista de marketing. Crie um relatório GERENCIAL em português com:
+            
+            1. Visão geral simplificada
+            2. Principais destaques e preocupações
+            3. Análise estratégica do desempenho
+            4. Recomendações de alto nível
+            5. Próximos passos sugeridos
+            
+            Dados:
+            {dados_para_llm}
+            
+            Formate o relatório em markdown. Use linguagem acessível para não-especialistas.
+            """
+        
+        # Gera o conteúdo com o Gemini
+        with st.spinner("🧠 Gerando relatório avançado com IA..."):
+            response = model.generate_content(prompt)
+            return response.text
+        
+    except Exception as e:
+        return f"Erro ao gerar relatório: {str(e)}"
 
 # Interface do usuário ===============================================
 
@@ -142,12 +164,21 @@ if arquivo:
         with st.sidebar:
             st.header("🔧 Configurações de Análise")
             
+            # Seleção de métricas
             metricas_relatorio = st.multiselect(
-                "Selecione as métricas para incluir no relatório",
+                "Selecione as métricas para análise",
                 options=colunas_numericas,
                 default=colunas_numericas[:5]
             )
             
+            # Tipo de relatório
+            tipo_relatorio = st.radio(
+                "Tipo de relatório",
+                options=["técnico", "gerencial"],
+                index=0
+            )
+            
+            # Filtros
             st.subheader("Filtros")
             tipo_campanha = st.multiselect(
                 "Tipo de Campanha",
@@ -161,18 +192,16 @@ if arquivo:
                 default=df['Campaign status'].unique()
             )
             
-            if PLOTS_AVAILABLE:
-                mostrar_boxplots = st.checkbox("Mostrar boxplots das métricas")
-            else:
-                st.info("Instale matplotlib e seaborn para habilitar gráficos")
-                mostrar_boxplots = False
+            mostrar_boxplots = st.checkbox("Mostrar boxplots das métricas")
         
+        # Aplica filtros
         df_filtrado = df[
             (df['Campaign type'].isin(tipo_campanha)) &
             (df['Campaign status'].isin(status_campanha))
         ]
         
-        tab1, tab2, tab3 = st.tabs(["📋 Visão Geral", "📊 Análise por Métrica", "📝 Relatório Completo"])
+        # Abas principais
+        tab1, tab2, tab3 = st.tabs(["📋 Visão Geral", "📊 Análise por Métrica", "🧠 Relatório Avançado"])
         
         with tab1:
             st.subheader("Visão Geral das Campanhas")
@@ -214,28 +243,34 @@ if arquivo:
                 st.dataframe(bottom5.style.format({metrica_selecionada: "{:,.2f}"}))
         
         with tab3:
-            st.subheader("Relatório Completo de Performance")
+            st.subheader("Relatório Avançado com IA")
             
-            relatorio = gerar_relatorio(df_filtrado, metricas, metricas_relatorio)
-            
-            st.markdown(relatorio)
-            
-            st.download_button(
-                label="⬇️ Baixar Relatório",
-                data=relatorio,
-                file_name="relatorio_campanhas.md",
-                mime="text/markdown"
-            )
+            if st.button("Gerar Relatório com Análise Avançada"):
+                relatorio = gerar_relatorio_llm(df_filtrado, metricas, metricas_relatorio, tipo_relatorio)
+                
+                st.markdown(relatorio)
+                
+                st.download_button(
+                    label="⬇️ Baixar Relatório Completo",
+                    data=relatorio,
+                    file_name=f"relatorio_{tipo_relatorio}_campanhas.md",
+                    mime="text/markdown"
+                )
+            else:
+                st.info("Clique no botão acima para gerar um relatório avançado com análise de IA")
 
 else:
     st.info("ℹ️ Por favor, carregue um arquivo CSV para começar a análise")
 
-# Instruções de instalação se necessário
-if not PLOTS_AVAILABLE:
+# Instruções para configurar a API
+if not gemini_api_key:
     st.markdown("""
-    ## 📌 Instalação de Dependências
-    Para habilitar todos os recursos visuais, instale as bibliotecas necessárias com:
-    ```
-    pip install matplotlib seaborn
-    ```
+    ## 🔑 Configuração da API Gemini
+    Para habilitar o relatório avançado com IA:
+    1. Obtenha uma API key do Google Gemini
+    2. Configure como variável de ambiente:
+       ```bash
+       export GEMINI_API_KEY='sua_chave_aqui'
+       ```
+    3. Reinicie o aplicativo
     """)
