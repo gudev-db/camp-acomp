@@ -1,26 +1,38 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from google.generativeai import GenerativeModel
 import os
 
-# Configuration
-st.set_page_config(layout="wide", page_title="Campaign Performance Dashboard")
+# Verifica e instala pacotes necessários
+try:
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    PLOTS_AVAILABLE = True
+except ImportError:
+    PLOTS_AVAILABLE = False
+    st.warning("Bibliotecas de visualização não disponíveis. Alguns gráficos serão desabilitados.")
 
-# Gemini API setup
-gemini_api_key = os.getenv("GEM_API_KEY")
-model = GenerativeModel('gemini-pro') if gemini_api_key else None
+# Configuração da página
+st.set_page_config(
+    layout="wide",
+    page_title="Analytics de Campanhas",
+    page_icon="📊"
+)
 
-def load_data(uploaded_file):
-    """Load and preprocess the CSV file"""
+# Título principal
+st.title("📊 Analytics de Performance de Campanhas Digitais")
+
+# Funções do aplicativo ==============================================
+
+def carregar_dados(arquivo):
+    """Carrega e prepara o arquivo CSV"""
     try:
-        df = pd.read_csv(uploaded_file, skiprows=2)  # Skip header rows
-        df = df.dropna(how='all')  # Remove empty rows
+        df = pd.read_csv(arquivo, skiprows=2)
+        df = df.dropna(how='all')
         
-        # Clean numeric columns
         for col in df.columns:
             if df[col].dtype == 'object':
-                df[col] = df[col].str.replace(',', '').str.replace('%', '')
+                df[col] = df[col].astype(str).str.replace(',', '').str.replace('%', '').str.replace(' ', '')
                 try:
                     df[col] = pd.to_numeric(df[col], errors='ignore')
                 except:
@@ -28,180 +40,202 @@ def load_data(uploaded_file):
         
         return df
     except Exception as e:
-        st.error(f"Error loading file: {str(e)}")
+        st.error(f"Erro ao carregar arquivo: {str(e)}")
         return None
 
-def calculate_metrics(df):
-    """Calculate averages and identify campaigns above/below average"""
-    metrics = {}
+def calcular_metricas(df):
+    """Calcula estatísticas básicas para todas as colunas numéricas"""
+    metricas = {}
+    colunas_numericas = df.select_dtypes(include=[np.number]).columns.tolist()
     
-    # Identify numeric columns
-    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    
-    # Calculate averages
-    for col in numeric_cols:
-        if col in ['Campaign ID']:  # Skip ID columns
+    for col in colunas_numericas:
+        if col in ['Campaign ID']:
             continue
             
-        avg = df[col].mean()
-        metrics[col] = {
-            'average': avg,
-            'above_avg': df[df[col] > avg]['Campaign'].tolist(),
-            'below_avg': df[df[col] < avg]['Campaign'].tolist()
+        metricas[col] = {
+            'média': df[col].mean(),
+            'mediana': df[col].median(),
+            'desvio_padrao': df[col].std(),
+            'min': df[col].min(),
+            'max': df[col].max(),
+            'q1': df[col].quantile(0.25),
+            'q3': df[col].quantile(0.75)
         }
     
-    return metrics
+    return metricas
 
-def generate_llm_report(df, metrics):
-    """Generate a detailed report using LLM"""
-    if not model:
-        return "Gemini API key not configured. Report generation disabled."
+def criar_boxplot(df, coluna):
+    """Cria um boxplot para uma coluna numérica"""
+    if not PLOTS_AVAILABLE:
+        st.warning("Bibliotecas de visualização não disponíveis. Instale matplotlib e seaborn para ver os gráficos.")
+        return
     
-    # Prepare data summary for LLM
-    summary = f"""
-    Campaign Performance Report Summary:
-    - Total campaigns: {len(df)}
-    - Active campaigns: {len(df[df['Campaign status'] == 'Active'])}
-    - Paused campaigns: {len(df[df['Campaign status'] == 'Paused'])}
+    try:
+        plt.figure(figsize=(8, 4))
+        sns.boxplot(x=df[coluna])
+        plt.title(f'Distribuição de {coluna}')
+        plt.xlabel('Valor')
+        st.pyplot(plt)
+        plt.close()
+    except Exception as e:
+        st.error(f"Erro ao criar gráfico: {str(e)}")
+
+def gerar_relatorio(df, metricas, colunas_selecionadas):
+    """Gera um relatório analítico das campanhas"""
+    relatorio = f"""
+    # Relatório de Performance de Campanhas
+    **Total de campanhas analisadas:** {len(df)}
     
-    Key Metrics Averages:
+    ## Resumo Estatístico
     """
     
-    for col, data in metrics.items():
-        summary += f"- {col}: {data['average']:.2f}\n"
+    for col in colunas_selecionadas:
+        if col in metricas:
+            stats = metricas[col]
+            relatorio += f"""
+            ### {col}
+            - Média: {stats['média']:,.2f}
+            - Mediana: {stats['mediana']:,.2f} 
+            - Intervalo: {stats['min']:,.2f} a {stats['max']:,.2f}
+            - Desvio Padrão: {stats['desvio_padrao']:,.2f}
+            
+            """
     
-    prompt = f"""
-    You are a digital marketing analytics expert. Analyze this campaign performance data and generate a detailed report in Portuguese.
+    relatorio += "## Campanhas com Melhor Performance\n"
+    for col in colunas_selecionadas:
+        if col in df.columns:
+            top5 = df.nlargest(5, col)[['Campaign', col]]
+            relatorio += f"**Maiores valores em {col}:**\n"
+            for _, row in top5.iterrows():
+                relatorio += f"- {row['Campaign']}: {row[col]:,.2f}\n"
+            relatorio += "\n"
     
-    Data Summary:
-    {summary}
+    relatorio += "## Campanhas com Pior Performance\n"
+    for col in colunas_selecionadas:
+        if col in df.columns:
+            bottom5 = df.nsmallest(5, col)[['Campaign', col]]
+            relatorio += f"**Menores valores em {col}:**\n"
+            for _, row in bottom5.iterrows():
+                relatorio += f"- {row['Campaign']}: {row[col]:,.2f}\n"
+            relatorio += "\n"
     
-    Report Requirements:
-    1. Start with an executive summary highlighting overall performance
-    2. Create sections for each major metric (CPV, CPM, CTR, etc.)
-    3. For each metric:
-       - Explain what it measures
-       - Analyze the average performance
-       - Highlight top 3 performing campaigns
-       - Highlight bottom 3 performing campaigns
-       - Provide recommendations for improvement
-    4. End with overall conclusions and strategic recommendations
-    
-    Format the report professionally with markdown headings.
-    """
-    
-    response = model.generate_content(prompt)
-    return response.text
+    return relatorio
 
-def main():
-    st.title("📊 Campaign Performance Analytics Dashboard")
+# Interface do usuário ===============================================
+
+# Upload do arquivo
+arquivo = st.file_uploader(
+    "📤 Carregue seu relatório de campanhas (formato CSV)",
+    type=["csv"],
+    help="O arquivo deve seguir o formato padrão dos relatórios do Google Ads"
+)
+
+if arquivo:
+    df = carregar_dados(arquivo)
     
-    # File upload
-    uploaded_file = st.file_uploader("Upload Campaign CSV Report", type=["csv"])
-    
-    if uploaded_file:
-        df = load_data(uploaded_file)
+    if df is not None:
+        st.success("✅ Dados carregados com sucesso!")
         
-        if df is not None:
-            st.success("Data loaded successfully!")
+        metricas = calcular_metricas(df)
+        colunas_numericas = [col for col in metricas.keys() if col != 'Campaign ID']
+        
+        with st.sidebar:
+            st.header("🔧 Configurações de Análise")
             
-            # Calculate metrics
-            metrics = calculate_metrics(df)
+            metricas_relatorio = st.multiselect(
+                "Selecione as métricas para incluir no relatório",
+                options=colunas_numericas,
+                default=colunas_numericas[:5]
+            )
             
-            # Display data
-            st.subheader("Campaign Data Preview")
-            st.dataframe(df.head(), use_container_width=True)
+            st.subheader("Filtros")
+            tipo_campanha = st.multiselect(
+                "Tipo de Campanha",
+                options=df['Campaign type'].unique(),
+                default=df['Campaign type'].unique()
+            )
             
-            # Metrics tabs
-            tab1, tab2, tab3 = st.tabs(["📈 Key Metrics", "🔍 Campaign Analysis", "📝 AI Report"])
+            status_campanha = st.multiselect(
+                "Status da Campanha",
+                options=df['Campaign status'].unique(),
+                default=df['Campaign status'].unique()
+            )
             
-            with tab1:
-                st.subheader("Key Performance Metrics")
-                
-                # Select metric to visualize
-                metric_cols = [col for col in metrics.keys() if col not in ['Campaign ID']]
-                selected_metric = st.selectbox("Select metric to analyze", metric_cols)
-                
-                if selected_metric:
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        st.metric(
-                            label=f"Average {selected_metric}",
-                            value=f"{metrics[selected_metric]['average']:.2f}"
-                        )
-                        
-                        st.write("**Top Performing Campaigns (Above Average)**")
-                        st.dataframe(
-                            df[df['Campaign'].isin(metrics[selected_metric]['above_avg'])][['Campaign', selected_metric]].sort_values(selected_metric, ascending=False),
-                            height=300
-                        )
-                    
-                    with col2:
-                        st.write("**Below Average**")
-                        st.dataframe(
-                            df[df['Campaign'].isin(metrics[selected_metric]['below_avg'])][['Campaign', selected_metric]].sort_values(selected_metric),
-                            height=300
-                        )
-                    
-                    # Metric trend visualization
-                    st.subheader("Performance Distribution")
-                    st.bar_chart(df[selected_metric])
+            if PLOTS_AVAILABLE:
+                mostrar_boxplots = st.checkbox("Mostrar boxplots das métricas")
+            else:
+                st.info("Instale matplotlib e seaborn para habilitar gráficos")
+                mostrar_boxplots = False
+        
+        df_filtrado = df[
+            (df['Campaign type'].isin(tipo_campanha)) &
+            (df['Campaign status'].isin(status_campanha))
+        ]
+        
+        tab1, tab2, tab3 = st.tabs(["📋 Visão Geral", "📊 Análise por Métrica", "📝 Relatório Completo"])
+        
+        with tab1:
+            st.subheader("Visão Geral das Campanhas")
             
-            with tab2:
-                st.subheader("Campaign Performance Analysis")
-                
-                # Filter options
-                campaign_type = st.multiselect(
-                    "Filter by Campaign Type",
-                    options=df['Campaign type'].unique(),
-                    default=df['Campaign type'].unique()
-                )
-                
-                status_filter = st.multiselect(
-                    "Filter by Status",
-                    options=df['Campaign status'].unique(),
-                    default=df['Campaign status'].unique()
-                )
-                
-                # Apply filters
-                filtered_df = df[
-                    (df['Campaign type'].isin(campaign_type)) &
-                    (df['Campaign status'].isin(status_filter))
-                ]
-                
-                # Display filtered data
-                st.dataframe(filtered_df, use_container_width=True)
-                
-                # Performance comparison
-                st.subheader("Performance Comparison")
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.write("**Highest Performing Campaigns**")
-                    top_campaigns = filtered_df.nlargest(5, 'Interactions')[['Campaign', 'Interactions', 'Interaction rate']]
-                    st.dataframe(top_campaigns)
-                
-                with col2:
-                    st.write("**Lowest Performing Campaigns**")
-                    bottom_campaigns = filtered_df.nsmallest(5, 'Interactions')[['Campaign', 'Interactions', 'Interaction rate']]
-                    st.dataframe(bottom_campaigns)
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Total de Campanhas", len(df_filtrado))
+            col2.metric("Campanhas Ativas", len(df_filtrado[df_filtrado['Campaign status'] == 'Active']))
+            col3.metric("Campanhas Pausadas", len(df_filtrado[df_filtrado['Campaign status'] == 'Paused']))
             
-            with tab3:
-                st.subheader("AI-Powered Performance Report")
+            st.dataframe(df_filtrado, use_container_width=True)
+        
+        with tab2:
+            st.subheader("Análise Detalhada por Métrica")
+            
+            metrica_selecionada = st.selectbox(
+                "Selecione uma métrica para análise detalhada",
+                options=colunas_numericas
+            )
+            
+            if metrica_selecionada:
+                stats = metricas[metrica_selecionada]
                 
-                if st.button("Generate Report"):
-                    with st.spinner("Generating detailed report..."):
-                        report = generate_llm_report(df, metrics)
-                        st.markdown(report)
-                        
-                        # Download option
-                        st.download_button(
-                            label="Download Report",
-                            data=report,
-                            file_name="campaign_performance_report.md",
-                            mime="text/markdown"
-                        )
+                col1, col2, col3, col4 = st.columns(4)
+                col1.metric("Média", f"{stats['média']:,.2f}")
+                col2.metric("Mediana", f"{stats['mediana']:,.2f}")
+                col3.metric("Mínimo", f"{stats['min']:,.2f}")
+                col4.metric("Máximo", f"{stats['max']:,.2f}")
+                
+                if mostrar_boxplots:
+                    st.subheader("Distribuição dos Valores")
+                    criar_boxplot(df_filtrado, metrica_selecionada)
+                
+                st.subheader("Campanhas com Melhor Performance")
+                top5 = df_filtrado.nlargest(5, metrica_selecionada)[['Campaign', metrica_selecionada]]
+                st.dataframe(top5.style.format({metrica_selecionada: "{:,.2f}"}))
+                
+                st.subheader("Campanhas com Pior Performance")
+                bottom5 = df_filtrado.nsmallest(5, metrica_selecionada)[['Campaign', metrica_selecionada]]
+                st.dataframe(bottom5.style.format({metrica_selecionada: "{:,.2f}"}))
+        
+        with tab3:
+            st.subheader("Relatório Completo de Performance")
+            
+            relatorio = gerar_relatorio(df_filtrado, metricas, metricas_relatorio)
+            
+            st.markdown(relatorio)
+            
+            st.download_button(
+                label="⬇️ Baixar Relatório",
+                data=relatorio,
+                file_name="relatorio_campanhas.md",
+                mime="text/markdown"
+            )
 
-if __name__ == "__main__":
-    main()
+else:
+    st.info("ℹ️ Por favor, carregue um arquivo CSV para começar a análise")
+
+# Instruções de instalação se necessário
+if not PLOTS_AVAILABLE:
+    st.markdown("""
+    ## 📌 Instalação de Dependências
+    Para habilitar todos os recursos visuais, instale as bibliotecas necessárias com:
+    ```
+    pip install matplotlib seaborn
+    ```
+    """)
