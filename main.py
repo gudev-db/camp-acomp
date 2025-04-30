@@ -1,165 +1,207 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from io import StringIO
-from google import genai
+from google.generativeai import GenerativeModel
 import os
 
-# Set page config
-st.set_page_config(page_title="Campaign Performance Dashboard", layout="wide")
+# Configuration
+st.set_page_config(layout="wide", page_title="Campaign Performance Dashboard")
 
-# Initialize Gemini API
+# Gemini API setup
 gemini_api_key = os.getenv("GEM_API_KEY")
-if gemini_api_key:
-    client = genai.Client(api_key=gemini_api_key)
-else:
-    st.warning("Gemini API key not found. LLM features will be disabled.")
+model = GenerativeModel('gemini-pro') if gemini_api_key else None
 
-# Function to clean and preprocess data
-def preprocess_data(df):
-    # Convert numeric columns with commas to floats
-    numeric_cols = ['Budget', 'Avg. CPV', 'Avg. CPV (Converted currency)', 
-                   'Avg. CPM', 'Avg. CPM (Converted currency)', 'Avg. cost',
-                   'Avg. cost (Converted currency)', 'Cost', 'Cost (Converted currency)',
-                   'Avg. CPC', 'Avg. CPC (Converted currency)', 'Cost / conv.',
-                   'Cost (Converted currency) / conv.']
-    
-    for col in numeric_cols:
-        if col in df.columns:
-            df[col] = df[col].replace('--', np.nan)
-            df[col] = df[col].str.replace(',', '').astype(float)
-    
-    # Clean other columns
-    if 'Interactions' in df.columns:
-        df['Interactions'] = df['Interactions'].str.replace(',', '').astype(float)
-    if 'Impr.' in df.columns:
-        df['Impr.'] = df['Impr.'].str.replace(',', '').astype(float)
-    if 'Clicks' in df.columns:
-        df['Clicks'] = df['Clicks'].str.replace(',', '').astype(float)
-    
-    return df
+def load_data(uploaded_file):
+    """Load and preprocess the CSV file"""
+    try:
+        df = pd.read_csv(uploaded_file, skiprows=2)  # Skip header rows
+        df = df.dropna(how='all')  # Remove empty rows
+        
+        # Clean numeric columns
+        for col in df.columns:
+            if df[col].dtype == 'object':
+                df[col] = df[col].str.replace(',', '').str.replace('%', '')
+                try:
+                    df[col] = pd.to_numeric(df[col], errors='ignore')
+                except:
+                    pass
+        
+        return df
+    except Exception as e:
+        st.error(f"Error loading file: {str(e)}")
+        return None
 
-# Function to generate performance metrics
-def generate_metrics(df):
+def calculate_metrics(df):
+    """Calculate averages and identify campaigns above/below average"""
+    metrics = {}
+    
+    # Identify numeric columns
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    metrics = df[numeric_cols].describe().loc[['mean', '50%', 'min', 'max']]
+    
+    # Calculate averages
+    for col in numeric_cols:
+        if col in ['Campaign ID']:  # Skip ID columns
+            continue
+            
+        avg = df[col].mean()
+        metrics[col] = {
+            'average': avg,
+            'above_avg': df[df[col] > avg]['Campaign'].tolist(),
+            'below_avg': df[df[col] < avg]['Campaign'].tolist()
+        }
+    
     return metrics
 
-# Function to identify campaigns above/below average
-def get_campaigns_by_metric(df, metric, above=True):
-    mean_value = df[metric].mean()
-    if above:
-        return df[df[metric] > mean_value][['Campaign', metric]]
-    else:
-        return df[df[metric] <= mean_value][['Campaign', metric]]
-
-# Function to generate LLM insights
-def generate_llm_insights(df, metric):
-    if not gemini_api_key:
-        return "LLM features disabled - API key not configured"
+def generate_llm_report(df, metrics):
+    """Generate a detailed report using LLM"""
+    if not model:
+        return "Gemini API key not configured. Report generation disabled."
     
-    prompt = f"""
-    Analyze the campaign performance data for the metric: {metric}. 
-    Provide detailed insights in Portuguese about what the numbers mean, 
-    which campaigns are performing well or poorly, and recommendations for optimization.
-    Focus on practical actions and be specific.
+    # Prepare data summary for LLM
+    summary = f"""
+    Campaign Performance Report Summary:
+    - Total campaigns: {len(df)}
+    - Active campaigns: {len(df[df['Campaign status'] == 'Active'])}
+    - Paused campaigns: {len(df[df['Campaign status'] == 'Paused'])}
     
-    Data Summary:
-    Mean: {df[metric].mean():.2f}
-    Median: {df[metric].median():.2f}
-    Min: {df[metric].min():.2f}
-    Max: {df[metric].max():.2f}
-    
-    Top performing campaigns:
-    {df.nlargest(3, metric)[['Campaign', metric]].to_string()}
-    
-    Worst performing campaigns:
-    {df.nsmallest(3, metric)[['Campaign', metric]].to_string()}
+    Key Metrics Averages:
     """
     
-    try:
-        response = client.models.generate_content(
-            model="gemini-1.5-flash",
-            contents=[prompt]
-        )
-        return response.text
-    except Exception as e:
-        return f"Error generating insights: {str(e)}"
+    for col, data in metrics.items():
+        summary += f"- {col}: {data['average']:.2f}\n"
+    
+    prompt = f"""
+    You are a digital marketing analytics expert. Analyze this campaign performance data and generate a detailed report in Portuguese.
+    
+    Data Summary:
+    {summary}
+    
+    Report Requirements:
+    1. Start with an executive summary highlighting overall performance
+    2. Create sections for each major metric (CPV, CPM, CTR, etc.)
+    3. For each metric:
+       - Explain what it measures
+       - Analyze the average performance
+       - Highlight top 3 performing campaigns
+       - Highlight bottom 3 performing campaigns
+       - Provide recommendations for improvement
+    4. End with overall conclusions and strategic recommendations
+    
+    Format the report professionally with markdown headings.
+    """
+    
+    response = model.generate_content(prompt)
+    return response.text
 
-# Main app
 def main():
-    st.title("📊 Campaign Performance Dashboard")
+    st.title("📊 Campaign Performance Analytics Dashboard")
     
     # File upload
-    uploaded_file = st.file_uploader("Upload your campaign CSV file", type=["csv"])
+    uploaded_file = st.file_uploader("Upload Campaign CSV Report", type=["csv"])
     
-    if uploaded_file is not None:
-        # Read and preprocess data
-        stringio = StringIO(uploaded_file.getvalue().decode("utf-8"))
-        df = pd.read_csv(stringio, skiprows=2)  # Skip header rows
-        df = preprocess_data(df)
+    if uploaded_file:
+        df = load_data(uploaded_file)
         
-        # Display raw data
-        st.subheader("Raw Data Preview")
-        st.dataframe(df.head())
-        
-        # Generate metrics
-        st.subheader("📈 Performance Metrics")
-        metrics = generate_metrics(df)
-        st.dataframe(metrics.style.format("{:.2f}"))
-        
-        # Campaign analysis
-        st.subheader("🔍 Campaign Analysis")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.write("### Top Performing Campaigns")
-            metric = st.selectbox("Select metric to analyze:", 
-                                df.select_dtypes(include=[np.number]).columns.tolist())
+        if df is not None:
+            st.success("Data loaded successfully!")
             
-            top_campaigns = df.nlargest(5, metric)[['Campaign', metric]]
-            st.dataframe(top_campaigns)
+            # Calculate metrics
+            metrics = calculate_metrics(df)
             
-            st.write("### Campaigns Above Average")
-            above_avg = get_campaigns_by_metric(df, metric, above=True)
-            st.dataframe(above_avg)
-        
-        with col2:
-            st.write("### Worst Performing Campaigns")
-            bottom_campaigns = df.nsmallest(5, metric)[['Campaign', metric]]
-            st.dataframe(bottom_campaigns)
+            # Display data
+            st.subheader("Campaign Data Preview")
+            st.dataframe(df.head(), use_container_width=True)
             
-            st.write("### Campaigns Below Average")
-            below_avg = get_campaigns_by_metric(df, metric, above=False)
-            st.dataframe(below_avg)
-        
-        # Visualization
-        st.subheader("📊 Visualization")
-        
-        chart_type = st.selectbox("Select chart type:", 
-                                ["Bar Chart", "Line Chart", "Scatter Plot"])
-        
-        if chart_type == "Bar Chart":
-            st.bar_chart(df.set_index('Campaign')[metric].nlargest(10))
-        elif chart_type == "Line Chart":
-            st.line_chart(df.set_index('Campaign')[metric].nlargest(10))
-        else:
-            if 'Cost' in df.columns and 'Clicks' in df.columns:
-                st.scatter_chart(df, x='Cost', y='Clicks', color='Campaign')
-        
-        # LLM Insights
-        st.subheader("🤖 AI-Powered Insights")
-        
-        if st.button("Generate Detailed Report"):
-            with st.spinner("Generating insights..."):
-                metrics_to_analyze = ['Avg. CPC', 'Avg. CPM', 'Cost', 'Interaction rate', 'Impr.']
+            # Metrics tabs
+            tab1, tab2, tab3 = st.tabs(["📈 Key Metrics", "🔍 Campaign Analysis", "📝 AI Report"])
+            
+            with tab1:
+                st.subheader("Key Performance Metrics")
                 
-                for metric in metrics_to_analyze:
-                    if metric in df.columns:
-                        with st.expander(f"Insights for {metric}"):
-                            insights = generate_llm_insights(df, metric)
-                            st.write(insights)
+                # Select metric to visualize
+                metric_cols = [col for col in metrics.keys() if col not in ['Campaign ID']]
+                selected_metric = st.selectbox("Select metric to analyze", metric_cols)
+                
+                if selected_metric:
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.metric(
+                            label=f"Average {selected_metric}",
+                            value=f"{metrics[selected_metric]['average']:.2f}"
+                        )
+                        
+                        st.write("**Top Performing Campaigns (Above Average)**")
+                        st.dataframe(
+                            df[df['Campaign'].isin(metrics[selected_metric]['above_avg'])][['Campaign', selected_metric]].sort_values(selected_metric, ascending=False),
+                            height=300
+                        )
+                    
+                    with col2:
+                        st.write("**Below Average**")
+                        st.dataframe(
+                            df[df['Campaign'].isin(metrics[selected_metric]['below_avg'])][['Campaign', selected_metric]].sort_values(selected_metric),
+                            height=300
+                        )
+                    
+                    # Metric trend visualization
+                    st.subheader("Performance Distribution")
+                    st.bar_chart(df[selected_metric])
+            
+            with tab2:
+                st.subheader("Campaign Performance Analysis")
+                
+                # Filter options
+                campaign_type = st.multiselect(
+                    "Filter by Campaign Type",
+                    options=df['Campaign type'].unique(),
+                    default=df['Campaign type'].unique()
+                )
+                
+                status_filter = st.multiselect(
+                    "Filter by Status",
+                    options=df['Campaign status'].unique(),
+                    default=df['Campaign status'].unique()
+                )
+                
+                # Apply filters
+                filtered_df = df[
+                    (df['Campaign type'].isin(campaign_type)) &
+                    (df['Campaign status'].isin(status_filter))
+                ]
+                
+                # Display filtered data
+                st.dataframe(filtered_df, use_container_width=True)
+                
+                # Performance comparison
+                st.subheader("Performance Comparison")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.write("**Highest Performing Campaigns**")
+                    top_campaigns = filtered_df.nlargest(5, 'Interactions')[['Campaign', 'Interactions', 'Interaction rate']]
+                    st.dataframe(top_campaigns)
+                
+                with col2:
+                    st.write("**Lowest Performing Campaigns**")
+                    bottom_campaigns = filtered_df.nsmallest(5, 'Interactions')[['Campaign', 'Interactions', 'Interaction rate']]
+                    st.dataframe(bottom_campaigns)
+            
+            with tab3:
+                st.subheader("AI-Powered Performance Report")
+                
+                if st.button("Generate Report"):
+                    with st.spinner("Generating detailed report..."):
+                        report = generate_llm_report(df, metrics)
+                        st.markdown(report)
+                        
+                        # Download option
+                        st.download_button(
+                            label="Download Report",
+                            data=report,
+                            file_name="campaign_performance_report.md",
+                            mime="text/markdown"
+                        )
 
 if __name__ == "__main__":
     main()
