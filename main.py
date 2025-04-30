@@ -234,11 +234,11 @@ if arquivo:
                     st.subheader("Distribuição dos Valores")
                     criar_boxplot(df_filtrado, metrica_selecionada)
                 
-                st.subheader("Campanhas com Melhor Performance")
+                st.subheader("Campanhas acima da média")
                 top5 = df_filtrado.nlargest(5, metrica_selecionada)[['Campaign', metrica_selecionada]]
                 st.dataframe(top5.style.format({metrica_selecionada: "{:,.2f}"}))
                 
-                st.subheader("Campanhas com Pior Performance")
+                st.subheader("Campanhas abaixo da média")
                 bottom5 = df_filtrado.nsmallest(5, metrica_selecionada)[['Campaign', metrica_selecionada]]
                 st.dataframe(bottom5.style.format({metrica_selecionada: "{:,.2f}"}))
         
