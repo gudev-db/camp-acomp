@@ -101,7 +101,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio):
                     dados_para_llm += f"  - {row['Campaign']}: {row[col]:.2f}\n"
         
         # Inicializa o modelo Gemini
-        model = GenerativeModel('gemini-pro')
+        model = GenerativeModel('gemini-1.5-flash')
         
         # Prompt específico baseado no tipo de relatório selecionado
         if tipo_relatorio == "técnico":
