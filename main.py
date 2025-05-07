@@ -76,33 +76,39 @@ def criar_boxplot(df, coluna):
     except Exception as e:
         st.error(f"Erro ao criar gráfico: {str(e)}")
 
-def criar_grafico_evolucao(dados_comparativos, metrica):
-    """Cria um gráfico de evolução da métrica selecionada"""
+def criar_grafico_comparativo(dados_atual, dados_anterior, metrica):
+    """Cria um gráfico comparativo entre os dois períodos"""
     try:
         plt.figure(figsize=(10, 6))
         
-        # Prepara os dados para o gráfico
-        datas = []
-        valores = []
+        # Valores para comparação
+        valores = {
+            'Mês Atual': dados_atual[metrica].mean(),
+            'Mês Anterior': dados_anterior[metrica].mean()
+        }
         
-        for data, df in dados_comparativos.items():
-            if metrica in df.columns:
-                datas.append(data)
-                valores.append(df[metrica].mean())
+        # Cálculo da variação percentual
+        variacao = ((valores['Mês Atual'] - valores['Mês Anterior']) / valores['Mês Anterior']) * 100
         
-        if len(datas) > 1:
-            plt.plot(datas, valores, marker='o', linestyle='-')
-            plt.title(f'Evolução da métrica: {metrica}')
-            plt.xlabel('Data do Relatório')
-            plt.ylabel('Valor Médio')
-            plt.xticks(rotation=45)
-            plt.grid(True)
-            st.pyplot(plt)
-            plt.close()
-        else:
-            st.warning("São necessários pelo menos 2 conjuntos de dados para mostrar a evolução")
+        # Gráfico de barras
+        plt.bar(valores.keys(), valores.values(), color=['#4CAF50', '#2196F3'])
+        
+        # Adiciona rótulos com os valores
+        for i, v in enumerate(valores.values()):
+            plt.text(i, v, f"{v:,.2f}", ha='center', va='bottom')
+        
+        # Configurações do gráfico
+        plt.title(f"Comparação: {metrica}\nVariação: {variacao:.1f}%")
+        plt.ylabel('Valor Médio')
+        plt.grid(axis='y', linestyle='--', alpha=0.7)
+        
+        st.pyplot(plt)
+        plt.close()
+        
+        return variacao
     except Exception as e:
-        st.error(f"Erro ao criar gráfico de evolução: {str(e)}")
+        st.error(f"Erro ao criar gráfico comparativo: {str(e)}")
+        return 0
 
 def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio):
     """Gera um relatório analítico usando LLM"""
@@ -175,36 +181,42 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio):
 # Interface do usuário ===============================================
 
 # Sessão para armazenar os dados carregados
-if 'dados_comparativos' not in st.session_state:
-    st.session_state.dados_comparativos = {}
-    st.session_state.ultimo_arquivo = None
+if 'dados_atual' not in st.session_state:
+    st.session_state.dados_atual = None
+    st.session_state.dados_anterior = None
 
-# Upload de múltiplos arquivos
-arquivos = st.file_uploader(
-    "📤 Carregue seus relatórios de campanhas (formato CSV)",
-    type=["csv"],
-    help="O arquivo deve seguir o formato padrão dos relatórios do Google Ads",
-    accept_multiple_files=True
-)
+# Seção de upload de arquivos
+col1, col2 = st.columns(2)
 
-if arquivos:
-    for arquivo in arquivos:
-        # Usa a data de upload como identificador se não houver data no arquivo
-        data_arquivo = datetime.now().strftime("%Y-%m-%d %H:%M")
-        df = carregar_dados(arquivo)
-        
-        if df is not None:
-            st.session_state.dados_comparativos[data_arquivo] = df
-            st.session_state.ultimo_arquivo = data_arquivo
-            st.success(f"✅ Dados de {data_arquivo} carregados com sucesso!")
+with col1:
+    st.subheader("📅 Mês Atual (Mais Recente)")
+    arquivo_atual = st.file_uploader(
+        "Carregue o relatório do mês atual",
+        type=["csv"],
+        key="uploader_atual"
+    )
+    if arquivo_atual:
+        df_atual = carregar_dados(arquivo_atual)
+        if df_atual is not None:
+            st.session_state.dados_atual = df_atual
+            st.success("✅ Dados do mês atual carregados com sucesso!")
 
-if st.session_state.dados_comparativos:
-    # Mostra qual é o arquivo mais recente
-    if st.session_state.ultimo_arquivo:
-        st.sidebar.markdown(f"**Último arquivo carregado:** {st.session_state.ultimo_arquivo}")
-    
-    # Obtém o último DataFrame carregado para análise principal
-    df = st.session_state.dados_comparativos[st.session_state.ultimo_arquivo]
+with col2:
+    st.subheader("🗓️ Mês Anterior")
+    arquivo_anterior = st.file_uploader(
+        "Carregue o relatório do mês anterior",
+        type=["csv"],
+        key="uploader_anterior"
+    )
+    if arquivo_anterior:
+        df_anterior = carregar_dados(arquivo_anterior)
+        if df_anterior is not None:
+            st.session_state.dados_anterior = df_anterior
+            st.success("✅ Dados do mês anterior carregados com sucesso!")
+
+# Verifica se temos dados para análise
+if st.session_state.dados_atual is not None:
+    df = st.session_state.dados_atual
     metricas = calcular_metricas(df)
     colunas_numericas = [col for col in metricas.keys() if col != 'Campaign ID']
     
@@ -248,10 +260,10 @@ if st.session_state.dados_comparativos:
     ]
     
     # Abas principais
-    tab1, tab2, tab3, tab4 = st.tabs(["📋 Visão Geral", "📊 Análise por Métrica", "📈 Evolução Mensal", "🧠 Relatório Avançado"])
+    tab1, tab2, tab3, tab4 = st.tabs(["📋 Visão Geral", "📊 Análise por Métrica", "🔄 Comparativo Mensal", "🧠 Relatório Avançado"])
     
     with tab1:
-        st.subheader("Visão Geral das Campanhas")
+        st.subheader("Visão Geral das Campanhas - Mês Atual")
         
         col1, col2, col3 = st.columns(3)
         col1.metric("Total de Campanhas", len(df_filtrado))
@@ -261,7 +273,7 @@ if st.session_state.dados_comparativos:
         st.dataframe(df_filtrado, use_container_width=True)
     
     with tab2:
-        st.subheader("Análise Detalhada por Métrica")
+        st.subheader("Análise Detalhada por Métrica - Mês Atual")
         
         metrica_selecionada = st.selectbox(
             "Selecione uma métrica para análise detalhada",
@@ -290,41 +302,71 @@ if st.session_state.dados_comparativos:
             st.dataframe(bottom5.style.format({metrica_selecionada: "{:,.2f}"}))
     
     with tab3:
-        st.subheader("Evolução Mensal das Métricas")
+        st.subheader("Comparativo Mensal")
         
-        if len(st.session_state.dados_comparativos) > 1:
-            metrica_evolucao = st.selectbox(
-                "Selecione uma métrica para análise de evolução",
+        if st.session_state.dados_anterior is not None:
+            # Aplica os mesmos filtros ao mês anterior
+            df_anterior_filtrado = st.session_state.dados_anterior[
+                (st.session_state.dados_anterior['Campaign type'].isin(tipo_campanha)) &
+                (st.session_state.dados_anterior['Campaign status'].isin(status_campanha))
+            ]
+            
+            metrica_comparacao = st.selectbox(
+                "Selecione uma métrica para comparação",
                 options=colunas_numericas,
-                key="evolucao_metrica"
+                key="comparacao_metrica"
             )
             
-            if metrica_evolucao:
-                criar_grafico_evolucao(st.session_state.dados_comparativos, metrica_evolucao)
+            if metrica_comparacao:
+                variacao = criar_grafico_comparativo(df_filtrado, df_anterior_filtrado, metrica_comparacao)
                 
-                # Tabela comparativa
-                st.subheader("Comparativo Mensal")
-                comparativo_data = []
+                # Tabela comparativa detalhada
+                st.subheader("Análise Detalhada da Comparação")
                 
-                for data, df in st.session_state.dados_comparativos.items():
-                    if metrica_evolucao in df.columns:
-                        comparativo_data.append({
-                            'Data': data,
-                            'Média': df[metrica_evolucao].mean(),
-                            'Mediana': df[metrica_evolucao].median(),
-                            'Mínimo': df[metrica_evolucao].min(),
-                            'Máximo': df[metrica_evolucao].max()
-                        })
+                # Calcula estatísticas para ambos os períodos
+                stats_atual = {
+                    'Média': df_filtrado[metrica_comparacao].mean(),
+                    'Mediana': df_filtrado[metrica_comparacao].median(),
+                    'Mínimo': df_filtrado[metrica_comparacao].min(),
+                    'Máximo': df_filtrado[metrica_comparacao].max(),
+                    'Desvio Padrão': df_filtrado[metrica_comparacao].std()
+                }
                 
-                df_comparativo = pd.DataFrame(comparativo_data)
-                st.dataframe(df_comparativo.style.format({
-                    'Média': '{:,.2f}',
-                    'Mediana': '{:,.2f}',
-                    'Mínimo': '{:,.2f}',
-                    'Máximo': '{:,.2f}'
-                }))
+                stats_anterior = {
+                    'Média': df_anterior_filtrado[metrica_comparacao].mean(),
+                    'Mediana': df_anterior_filtrado[metrica_comparacao].median(),
+                    'Mínimo': df_anterior_filtrado[metrica_comparacao].min(),
+                    'Máximo': df_anterior_filtrado[metrica_comparacao].max(),
+                    'Desvio Padrão': df_anterior_filtrado[metrica_comparacao].std()
+                }
+                
+                # Cria DataFrame comparativo
+                df_comparativo = pd.DataFrame({
+                    'Mês Atual': stats_atual,
+                    'Mês Anterior': stats_anterior
+                }).T
+                
+                # Calcula variações
+                df_comparativo['Variação (%)'] = ((df_comparativo.loc['Mês Atual'] - df_comparativo.loc['Mês Anterior']) / 
+                                                df_comparativo.loc['Mês Anterior']) * 100
+                
+                # Formatação condicional para a variação
+                def color_variation(val):
+                    color = 'red' if val < 0 else 'green' if val > 0 else 'gray'
+                    return f'color: {color}'
+                
+                st.dataframe(
+                    df_comparativo.style.format({
+                        'Média': '{:,.2f}',
+                        'Mediana': '{:,.2f}',
+                        'Mínimo': '{:,.2f}',
+                        'Máximo': '{:,.2f}',
+                        'Desvio Padrão': '{:,.2f}',
+                        'Variação (%)': '{:,.1f}%'
+                    }).applymap(color_variation, subset=['Variação (%)'])
+                )
         else:
-            st.info("Carregue pelo menos dois conjuntos de dados para comparar a evolução mensal")
+            st.info("ℹ️ Carregue os dados do mês anterior para habilitar a comparação mensal")
     
     with tab4:
         st.subheader("Relatório Avançado com IA")
@@ -344,7 +386,7 @@ if st.session_state.dados_comparativos:
             st.info("Clique no botão acima para gerar um relatório avançado com análise de IA")
 
 else:
-    st.info("ℹ️ Por favor, carregue um arquivo CSV para começar a análise")
+    st.info("ℹ️ Por favor, carregue pelo menos o relatório do mês atual para começar a análise")
 
 # Instruções para configurar a API
 if not gemini_api_key:
