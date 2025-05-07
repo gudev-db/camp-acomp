@@ -5,6 +5,7 @@ import os
 from google.generativeai import GenerativeModel
 import matplotlib.pyplot as plt
 import seaborn as sns
+from datetime import datetime
 
 # Configuração da página
 st.set_page_config(
@@ -74,6 +75,34 @@ def criar_boxplot(df, coluna):
         plt.close()
     except Exception as e:
         st.error(f"Erro ao criar gráfico: {str(e)}")
+
+def criar_grafico_evolucao(dados_comparativos, metrica):
+    """Cria um gráfico de evolução da métrica selecionada"""
+    try:
+        plt.figure(figsize=(10, 6))
+        
+        # Prepara os dados para o gráfico
+        datas = []
+        valores = []
+        
+        for data, df in dados_comparativos.items():
+            if metrica in df.columns:
+                datas.append(data)
+                valores.append(df[metrica].mean())
+        
+        if len(datas) > 1:
+            plt.plot(datas, valores, marker='o', linestyle='-')
+            plt.title(f'Evolução da métrica: {metrica}')
+            plt.xlabel('Data do Relatório')
+            plt.ylabel('Valor Médio')
+            plt.xticks(rotation=45)
+            plt.grid(True)
+            st.pyplot(plt)
+            plt.close()
+        else:
+            st.warning("São necessários pelo menos 2 conjuntos de dados para mostrar a evolução")
+    except Exception as e:
+        st.error(f"Erro ao criar gráfico de evolução: {str(e)}")
 
 def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio):
     """Gera um relatório analítico usando LLM"""
@@ -145,119 +174,174 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio):
 
 # Interface do usuário ===============================================
 
-# Upload do arquivo
-arquivo = st.file_uploader(
-    "📤 Carregue seu relatório de campanhas (formato CSV)",
+# Sessão para armazenar os dados carregados
+if 'dados_comparativos' not in st.session_state:
+    st.session_state.dados_comparativos = {}
+    st.session_state.ultimo_arquivo = None
+
+# Upload de múltiplos arquivos
+arquivos = st.file_uploader(
+    "📤 Carregue seus relatórios de campanhas (formato CSV)",
     type=["csv"],
-    help="O arquivo deve seguir o formato padrão dos relatórios do Google Ads"
+    help="O arquivo deve seguir o formato padrão dos relatórios do Google Ads",
+    accept_multiple_files=True
 )
 
-if arquivo:
-    df = carregar_dados(arquivo)
+if arquivos:
+    for arquivo in arquivos:
+        # Usa a data de upload como identificador se não houver data no arquivo
+        data_arquivo = datetime.now().strftime("%Y-%m-%d %H:%M")
+        df = carregar_dados(arquivo)
+        
+        if df is not None:
+            st.session_state.dados_comparativos[data_arquivo] = df
+            st.session_state.ultimo_arquivo = data_arquivo
+            st.success(f"✅ Dados de {data_arquivo} carregados com sucesso!")
+
+if st.session_state.dados_comparativos:
+    # Mostra qual é o arquivo mais recente
+    if st.session_state.ultimo_arquivo:
+        st.sidebar.markdown(f"**Último arquivo carregado:** {st.session_state.ultimo_arquivo}")
     
-    if df is not None:
-        st.success("✅ Dados carregados com sucesso!")
+    # Obtém o último DataFrame carregado para análise principal
+    df = st.session_state.dados_comparativos[st.session_state.ultimo_arquivo]
+    metricas = calcular_metricas(df)
+    colunas_numericas = [col for col in metricas.keys() if col != 'Campaign ID']
+    
+    with st.sidebar:
+        st.header("🔧 Configurações de Análise")
         
-        metricas = calcular_metricas(df)
-        colunas_numericas = [col for col in metricas.keys() if col != 'Campaign ID']
+        # Seleção de métricas
+        metricas_relatorio = st.multiselect(
+            "Selecione as métricas para análise",
+            options=colunas_numericas,
+            default=colunas_numericas[:5]
+        )
         
-        with st.sidebar:
-            st.header("🔧 Configurações de Análise")
+        # Tipo de relatório
+        tipo_relatorio = st.radio(
+            "Tipo de relatório",
+            options=["técnico", "gerencial"],
+            index=0
+        )
+        
+        # Filtros
+        st.subheader("Filtros")
+        tipo_campanha = st.multiselect(
+            "Tipo de Campanha",
+            options=df['Campaign type'].unique(),
+            default=df['Campaign type'].unique()
+        )
+        
+        status_campanha = st.multiselect(
+            "Status da Campanha",
+            options=df['Campaign status'].unique(),
+            default=df['Campaign status'].unique()
+        )
+        
+        mostrar_boxplots = st.checkbox("Mostrar boxplots das métricas")
+    
+    # Aplica filtros
+    df_filtrado = df[
+        (df['Campaign type'].isin(tipo_campanha)) &
+        (df['Campaign status'].isin(status_campanha))
+    ]
+    
+    # Abas principais
+    tab1, tab2, tab3, tab4 = st.tabs(["📋 Visão Geral", "📊 Análise por Métrica", "📈 Evolução Mensal", "🧠 Relatório Avançado"])
+    
+    with tab1:
+        st.subheader("Visão Geral das Campanhas")
+        
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total de Campanhas", len(df_filtrado))
+        col2.metric("Campanhas Ativas", len(df_filtrado[df_filtrado['Campaign status'] == 'Active']))
+        col3.metric("Campanhas Pausadas", len(df_filtrado[df_filtrado['Campaign status'] == 'Paused']))
+        
+        st.dataframe(df_filtrado, use_container_width=True)
+    
+    with tab2:
+        st.subheader("Análise Detalhada por Métrica")
+        
+        metrica_selecionada = st.selectbox(
+            "Selecione uma métrica para análise detalhada",
+            options=colunas_numericas
+        )
+        
+        if metrica_selecionada:
+            stats = metricas[metrica_selecionada]
             
-            # Seleção de métricas
-            metricas_relatorio = st.multiselect(
-                "Selecione as métricas para análise",
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("Média", f"{stats['média']:,.2f}")
+            col2.metric("Mediana", f"{stats['mediana']:,.2f}")
+            col3.metric("Mínimo", f"{stats['min']:,.2f}")
+            col4.metric("Máximo", f"{stats['max']:,.2f}")
+            
+            if mostrar_boxplots:
+                st.subheader("Distribuição dos Valores")
+                criar_boxplot(df_filtrado, metrica_selecionada)
+            
+            st.subheader("Campanhas acima da média")
+            top5 = df_filtrado.nlargest(5, metrica_selecionada)[['Campaign', metrica_selecionada]]
+            st.dataframe(top5.style.format({metrica_selecionada: "{:,.2f}"}))
+            
+            st.subheader("Campanhas abaixo da média")
+            bottom5 = df_filtrado.nsmallest(5, metrica_selecionada)[['Campaign', metrica_selecionada]]
+            st.dataframe(bottom5.style.format({metrica_selecionada: "{:,.2f}"}))
+    
+    with tab3:
+        st.subheader("Evolução Mensal das Métricas")
+        
+        if len(st.session_state.dados_comparativos) > 1:
+            metrica_evolucao = st.selectbox(
+                "Selecione uma métrica para análise de evolução",
                 options=colunas_numericas,
-                default=colunas_numericas[:5]
+                key="evolucao_metrica"
             )
             
-            # Tipo de relatório
-            tipo_relatorio = st.radio(
-                "Tipo de relatório",
-                options=["técnico", "gerencial"],
-                index=0
+            if metrica_evolucao:
+                criar_grafico_evolucao(st.session_state.dados_comparativos, metrica_evolucao)
+                
+                # Tabela comparativa
+                st.subheader("Comparativo Mensal")
+                comparativo_data = []
+                
+                for data, df in st.session_state.dados_comparativos.items():
+                    if metrica_evolucao in df.columns:
+                        comparativo_data.append({
+                            'Data': data,
+                            'Média': df[metrica_evolucao].mean(),
+                            'Mediana': df[metrica_evolucao].median(),
+                            'Mínimo': df[metrica_evolucao].min(),
+                            'Máximo': df[metrica_evolucao].max()
+                        })
+                
+                df_comparativo = pd.DataFrame(comparativo_data)
+                st.dataframe(df_comparativo.style.format({
+                    'Média': '{:,.2f}',
+                    'Mediana': '{:,.2f}',
+                    'Mínimo': '{:,.2f}',
+                    'Máximo': '{:,.2f}'
+                }))
+        else:
+            st.info("Carregue pelo menos dois conjuntos de dados para comparar a evolução mensal")
+    
+    with tab4:
+        st.subheader("Relatório Avançado com IA")
+        
+        if st.button("Gerar Relatório com Análise Avançada"):
+            relatorio = gerar_relatorio_llm(df_filtrado, metricas, metricas_relatorio, tipo_relatorio)
+            
+            st.markdown(relatorio)
+            
+            st.download_button(
+                label="⬇️ Baixar Relatório Completo",
+                data=relatorio,
+                file_name=f"relatorio_{tipo_relatorio}_campanhas.md",
+                mime="text/markdown"
             )
-            
-            # Filtros
-            st.subheader("Filtros")
-            tipo_campanha = st.multiselect(
-                "Tipo de Campanha",
-                options=df['Campaign type'].unique(),
-                default=df['Campaign type'].unique()
-            )
-            
-            status_campanha = st.multiselect(
-                "Status da Campanha",
-                options=df['Campaign status'].unique(),
-                default=df['Campaign status'].unique()
-            )
-            
-            mostrar_boxplots = st.checkbox("Mostrar boxplots das métricas")
-        
-        # Aplica filtros
-        df_filtrado = df[
-            (df['Campaign type'].isin(tipo_campanha)) &
-            (df['Campaign status'].isin(status_campanha))
-        ]
-        
-        # Abas principais
-        tab1, tab2, tab3 = st.tabs(["📋 Visão Geral", "📊 Análise por Métrica", "🧠 Relatório Avançado"])
-        
-        with tab1:
-            st.subheader("Visão Geral das Campanhas")
-            
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Total de Campanhas", len(df_filtrado))
-            col2.metric("Campanhas Ativas", len(df_filtrado[df_filtrado['Campaign status'] == 'Active']))
-            col3.metric("Campanhas Pausadas", len(df_filtrado[df_filtrado['Campaign status'] == 'Paused']))
-            
-            st.dataframe(df_filtrado, use_container_width=True)
-        
-        with tab2:
-            st.subheader("Análise Detalhada por Métrica")
-            
-            metrica_selecionada = st.selectbox(
-                "Selecione uma métrica para análise detalhada",
-                options=colunas_numericas
-            )
-            
-            if metrica_selecionada:
-                stats = metricas[metrica_selecionada]
-                
-                col1, col2, col3, col4 = st.columns(4)
-                col1.metric("Média", f"{stats['média']:,.2f}")
-                col2.metric("Mediana", f"{stats['mediana']:,.2f}")
-                col3.metric("Mínimo", f"{stats['min']:,.2f}")
-                col4.metric("Máximo", f"{stats['max']:,.2f}")
-                
-                if mostrar_boxplots:
-                    st.subheader("Distribuição dos Valores")
-                    criar_boxplot(df_filtrado, metrica_selecionada)
-                
-                st.subheader("Campanhas acima da média")
-                top5 = df_filtrado.nlargest(5, metrica_selecionada)[['Campaign', metrica_selecionada]]
-                st.dataframe(top5.style.format({metrica_selecionada: "{:,.2f}"}))
-                
-                st.subheader("Campanhas abaixo da média")
-                bottom5 = df_filtrado.nsmallest(5, metrica_selecionada)[['Campaign', metrica_selecionada]]
-                st.dataframe(bottom5.style.format({metrica_selecionada: "{:,.2f}"}))
-        
-        with tab3:
-            st.subheader("Relatório Avançado com IA")
-            
-            if st.button("Gerar Relatório com Análise Avançada"):
-                relatorio = gerar_relatorio_llm(df_filtrado, metricas, metricas_relatorio, tipo_relatorio)
-                
-                st.markdown(relatorio)
-                
-                st.download_button(
-                    label="⬇️ Baixar Relatório Completo",
-                    data=relatorio,
-                    file_name=f"relatorio_{tipo_relatorio}_campanhas.md",
-                    mime="text/markdown"
-                )
-            else:
-                st.info("Clique no botão acima para gerar um relatório avançado com análise de IA")
+        else:
+            st.info("Clique no botão acima para gerar um relatório avançado com análise de IA")
 
 else:
     st.info("ℹ️ Por favor, carregue um arquivo CSV para começar a análise")
