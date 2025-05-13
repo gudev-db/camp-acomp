@@ -61,10 +61,13 @@ def carregar_dados(arquivo):
             'Taxa de conv.': 'Taxa_conversao'
         })
         
+        # Converter colunas numéricas
         for col in df.columns:
-            if df[col].dtype == 'object':
-                df[col] = df[col].astype(str).str.replace(',', '').str.replace('%', '').str.replace(' ', '')
+            # Verifica se a coluna é do tipo objeto (string)
+            if pd.api.types.is_object_dtype(df[col]):
                 try:
+                    # Remove caracteres especiais e converte para numérico
+                    df[col] = df[col].astype(str).str.replace(',', '.').str.replace('%', '').str.replace(' ', '')
                     df[col] = pd.to_numeric(df[col], errors='ignore')
                 except:
                     pass
