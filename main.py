@@ -22,56 +22,32 @@ gemini_api_key = os.getenv("GEMINI_API_KEY")
 if not gemini_api_key:
     st.warning("⚠️ Chave da API Gemini não encontrada. O relatório avançado será limitado.")
 
-# Funções do aplicativo
+# Funções do aplicativo ==============================================
+
 def carregar_dados(arquivo):
+    """Carrega e prepara o arquivo CSV"""
     try:
-        try:
-            df = pd.read_csv(arquivo, skiprows=2)
-        except UnicodeDecodeError:
-            df = pd.read_csv(arquivo, skiprows=2, encoding='latin1')
-            
+        df = pd.read_csv(arquivo, skiprows=2)
         df = df.dropna(how='all')
         
-        rename_dict = {
-            'Status da campanha': 'Status',
-            'Campanha': 'Campaign',
-            'Nome do orçamento': 'Nome_orcamento',
-            'Código da moeda': 'Moeda',
-            'Orçamento': 'Orcamento',
-            'Tipo de orçamento': 'Tipo_orcamento',
-            'Motivos do status': 'Motivos_status',
-            'Pontuação de otimização': 'Pontuacao_otimizacao',
-            'Tipo de campanha': 'Tipo_campanha',
-            'CPV médio': 'CPV_medio',
-            'Interações': 'Interacoes',
-            'Taxa de interação': 'Taxa_interacao',
-            'Custo': 'Custo',
-            'Impr.': 'Impressoes',
-            'Cliques': 'Cliques',
-            'Conversões': 'Conversoes',
-            'CTR': 'CTR',
-            'CPM médio': 'CPM_medio',
-            'CPC méd.': 'CPC_medio',
-            'Custo / conv.': 'Custo_por_conversao',
-            'Custo médio': 'Custo_medio',
-            'Engajamentos': 'Engajamentos',
-            'IS parte sup. pesq.': 'IS_parte_superior',
-            'IS 1ª posição pesq.': 'IS_primeira_posicao',
-            'Visualizações': 'Visualizacoes',
-            'Tipo de estratégia de lances': 'Estrategia_lances',
-            'Taxa de conv.': 'Taxa_conversao'
-        }
-        
-        rename_dict = {k: v for k, v in rename_dict.items() if k in df.columns}
-        df = df.rename(columns=rename_dict)
+        # Renomear colunas para nomes consistentes
+        df.columns = [
+            'Status da campanha', 'Campanha', 'Nome do orçamento', 'Código da moeda', 
+            'Orçamento', 'Tipo de orçamento', 'Status', 'Motivos do status', 
+            'Pontuação de otimização', 'Tipo de campanha', 'CPV médio', 'Interações', 
+            'Taxa de interação', 'Custo', 'Impressões', 'Cliques', 'Conversões', 
+            'CTR', 'CPM médio', 'CPC médio', 'Custo por conversão', 'Custo médio', 
+            'Engajamentos', 'IS parte superior pesquisa', 'IS 1ª posição pesquisa', 
+            'Visualizações', 'Tipo de estratégia de lances', 'Taxa de conversão'
+        ]
         
         for col in df.columns:
-            if pd.api.types.is_object_dtype(df[col]):
+            if df[col].dtype == 'object':
+                df[col] = df[col].astype(str).str.replace(',', '').str.replace('%', '').str.replace(' ', '')
                 try:
-                    df[col] = df[col].astype(str).str.replace(',', '.').str.replace('%', '').str.replace('R\$', '').str.replace(' ', '')
                     df[col] = pd.to_numeric(df[col], errors='ignore')
                 except:
-                    continue
+                    pass
         
         return df
     except Exception as e:
@@ -79,29 +55,25 @@ def carregar_dados(arquivo):
         return None
 
 def calcular_metricas(df):
+    """Calcula estatísticas básicas para todas as colunas numéricas"""
     metricas = {}
-    if df.empty:
-        return metricas
-        
     colunas_numericas = df.select_dtypes(include=[np.number]).columns.tolist()
     
     for col in colunas_numericas:
-        try:
-            metricas[col] = {
-                'média': df[col].mean(),
-                'mediana': df[col].median(),
-                'desvio_padrao': df[col].std(),
-                'min': df[col].min(),
-                'max': df[col].max(),
-                'q1': df[col].quantile(0.25),
-                'q3': df[col].quantile(0.75)
-            }
-        except:
-            continue
+        metricas[col] = {
+            'média': df[col].mean(),
+            'mediana': df[col].median(),
+            'desvio_padrao': df[col].std(),
+            'min': df[col].min(),
+            'max': df[col].max(),
+            'q1': df[col].quantile(0.25),
+            'q3': df[col].quantile(0.75)
+        }
     
     return metricas
 
 def criar_boxplot(df, coluna):
+    """Cria um boxplot para uma coluna numérica"""
     try:
         plt.figure(figsize=(8, 4))
         sns.boxplot(x=df[coluna])
@@ -113,24 +85,27 @@ def criar_boxplot(df, coluna):
         st.error(f"Erro ao criar gráfico: {str(e)}")
 
 def criar_grafico_comparativo(dados_atual, dados_anterior, metrica):
+    """Cria um gráfico comparativo entre os dois períodos"""
     try:
         plt.figure(figsize=(10, 6))
         
+        # Valores para comparação
         valores = {
             'Mês Atual': dados_atual[metrica].mean(),
             'Mês Anterior': dados_anterior[metrica].mean()
         }
         
-        try:
-            variacao = ((valores['Mês Atual'] - valores['Mês Anterior']) / valores['Mês Anterior']) * 100
-        except ZeroDivisionError:
-            variacao = 0
+        # Cálculo da variação percentual
+        variacao = ((valores['Mês Atual'] - valores['Mês Anterior']) / valores['Mês Anterior']) * 100
         
+        # Gráfico de barras
         plt.bar(valores.keys(), valores.values(), color=['#4CAF50', '#2196F3'])
         
+        # Adiciona rótulos com os valores
         for i, v in enumerate(valores.values()):
             plt.text(i, v, f"{v:,.2f}", ha='center', va='bottom')
         
+        # Configurações do gráfico
         plt.title(f"Comparação: {metrica}\nVariação: {variacao:.1f}%")
         plt.ylabel('Valor Médio')
         plt.grid(axis='y', linestyle='--', alpha=0.7)
@@ -144,27 +119,34 @@ def criar_grafico_comparativo(dados_atual, dados_anterior, metrica):
         return 0
 
 def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio):
+    """Gera um relatório analítico usando LLM"""
     if not gemini_api_key:
         return "🔒 Relatório avançado desabilitado. Configure a API key do Gemini para ativar esta funcionalidade."
     
     try:
+        # Prepara os dados para o LLM
         dados_para_llm = ""
+        
+        # Resumo estatístico
         dados_para_llm += "## Resumo Estatístico:\n"
         for col in colunas_selecionadas:
             if col in metricas:
                 stats = metricas[col]
                 dados_para_llm += f"- {col}: Média={stats['média']:.2f}, Mediana={stats['mediana']:.2f}, Min={stats['min']:.2f}, Max={stats['max']:.2f}\n"
         
+        # Top e bottom performers
         dados_para_llm += "\n## Melhores Campanhas:\n"
-        for col in colunas_selecionadas[:3]:
-            if col in df.columns and 'Campaign' in df.columns:
-                top3 = df.nlargest(3, col)[['Campaign', col]]
+        for col in colunas_selecionadas[:3]:  # Limita a 3 métricas para não ficar muito longo
+            if col in df.columns:
+                top3 = df.nlargest(3, col)[['Campanha', col]]
                 dados_para_llm += f"- {col}:\n"
                 for _, row in top3.iterrows():
-                    dados_para_llm += f"  - {row['Campaign']}: {row[col]:.2f}\n"
+                    dados_para_llm += f"  - {row['Campanha']}: {row[col]:.2f}\n"
         
+        # Inicializa o modelo Gemini
         model = GenerativeModel('gemini-1.5-flash')
         
+        # Prompt específico baseado no tipo de relatório selecionado
         if tipo_relatorio == "técnico":
             prompt = f"""
             Você é um analista de marketing digital senior. Analise os dados de campanhas e gere um relatório TÉCNICO detalhado em português com:
@@ -196,6 +178,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio):
             Formate o relatório em markdown. Use linguagem acessível para não-especialistas.
             """
         
+        # Gera o conteúdo com o Gemini
         with st.spinner("🧠 Gerando relatório avançado com IA..."):
             response = model.generate_content(prompt)
             return response.text
@@ -203,11 +186,14 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio):
     except Exception as e:
         return f"Erro ao gerar relatório: {str(e)}"
 
-# Interface do usuário
+# Interface do usuário ===============================================
+
+# Sessão para armazenar os dados carregados
 if 'dados_atual' not in st.session_state:
     st.session_state.dados_atual = None
     st.session_state.dados_anterior = None
 
+# Seção de upload de arquivos
 col1, col2 = st.columns(2)
 
 with col1:
@@ -236,59 +222,52 @@ with col2:
             st.session_state.dados_anterior = df_anterior
             st.success("✅ Dados do mês anterior carregados com sucesso!")
 
+# Verifica se temos dados para análise
 if st.session_state.dados_atual is not None:
     df = st.session_state.dados_atual
     metricas = calcular_metricas(df)
-    colunas_numericas = [col for col in metricas.keys() if col in df.columns]
+    colunas_numericas = [col for col in metricas.keys()]
     
     with st.sidebar:
         st.header("🔧 Configurações de Análise")
         
-        # Verificar se temos dados válidos
-        if st.session_state.dados_atual is not None and not st.session_state.dados_atual.empty:
-            df = st.session_state.dados_atual
-            
-            # Filtros
-            st.subheader("Filtros")
-            
-            # Tipo de Campanha
-            if 'Tipo_campanha' in df.columns:
-                tipo_values = df['Tipo_campanha'].unique().tolist() if not df['Tipo_campanha'].empty else []
-                tipo_campanha = st.multiselect(
-                    "Tipo de Campanha",
-                    options=tipo_values,
-                    default=tipo_values
-                )
-            else:
-                st.warning("Coluna 'Tipo de Campanha' não encontrada")
-                tipo_campanha = []
-            
-            # Status da Campanha
-            if 'Status' in df.columns:
-                status_values = df['Status'].unique().tolist() if not df['Status'].empty else []
-                status_campanha = st.multiselect(
-                    "Status da Campanha",
-                    options=status_values,
-                    default=status_values
-                )
-            else:
-                st.warning("Coluna 'Status' não encontrada")
-                status_campanha = []
-            
-            mostrar_boxplots = st.checkbox("Mostrar boxplots das métricas")
-        else:
-            st.warning("Carregue os dados primeiro para configurar os filtros")
-            tipo_campanha = []
-            status_campanha = []
-            mostrar_boxplots = False
+        # Seleção de métricas
+        metricas_relatorio = st.multiselect(
+            "Selecione as métricas para análise",
+            options=colunas_numericas,
+            default=colunas_numericas[:5] if len(colunas_numericas) > 5 else colunas_numericas
+        )
+        
+        # Tipo de relatório
+        tipo_relatorio = st.radio(
+            "Tipo de relatório",
+            options=["técnico", "gerencial"],
+            index=0
+        )
+        
+        # Filtros
+        st.subheader("Filtros")
+        tipo_campanha = st.multiselect(
+            "Tipo de Campanha",
+            options=df['Tipo de campanha'].unique(),
+            default=df['Tipo de campanha'].unique()
+        )
+        
+        status_campanha = st.multiselect(
+            "Status da Campanha",
+            options=df['Status da campanha'].unique(),
+            default=df['Status da campanha'].unique()
+        )
+        
+        mostrar_boxplots = st.checkbox("Mostrar boxplots das métricas")
     
-    # Aplicar filtros apenas para colunas existentes
-    df_filtrado = df.copy()
-    if 'Tipo_campanha' in df.columns and tipo_campanha:
-        df_filtrado = df_filtrado[df_filtrado['Tipo_campanha'].isin(tipo_campanha)]
-    if 'Status' in df.columns and status_campanha:
-        df_filtrado = df_filtrado[df_filtrado['Status'].isin(status_campanha)]
-
+    # Aplica filtros
+    df_filtrado = df[
+        (df['Tipo de campanha'].isin(tipo_campanha)) &
+        (df['Status da campanha'].isin(status_campanha))
+    ]
+    
+    # Abas principais
     tab1, tab2, tab3, tab4 = st.tabs(["📋 Visão Geral", "📊 Análise por Métrica", "🔄 Comparativo Mensal", "🧠 Relatório Avançado"])
     
     with tab1:
@@ -296,114 +275,104 @@ if st.session_state.dados_atual is not None:
         
         col1, col2, col3 = st.columns(3)
         col1.metric("Total de Campanhas", len(df_filtrado))
-        
-        if 'Status' in df_filtrado.columns:
-            status_values = df_filtrado['Status'].unique()
-            if 'Ativo' in status_values:
-                col2.metric("Campanhas Ativas", len(df_filtrado[df_filtrado['Status'] == 'Ativo']))
-            if 'Pausado' in status_values:
-                col3.metric("Campanhas Pausadas", len(df_filtrado[df_filtrado['Status'] == 'Pausado']))
+        col2.metric("Campanhas Ativas", len(df_filtrado[df_filtrado['Status da campanha'] == 'Ativa']))
+        col3.metric("Campanhas Pausadas", len(df_filtrado[df_filtrado['Status da campanha'] == 'Pausada']))
         
         st.dataframe(df_filtrado, use_container_width=True)
     
     with tab2:
         st.subheader("Análise Detalhada por Métrica - Mês Atual")
         
-        if colunas_numericas:
-            metrica_selecionada = st.selectbox(
-                "Selecione uma métrica para análise detalhada",
-                options=colunas_numericas
-            )
+        metrica_selecionada = st.selectbox(
+            "Selecione uma métrica para análise detalhada",
+            options=colunas_numericas
+        )
+        
+        if metrica_selecionada:
+            stats = metricas[metrica_selecionada]
             
-            if metrica_selecionada in metricas:
-                stats = metricas[metrica_selecionada]
-                
-                col1, col2, col3, col4 = st.columns(4)
-                col1.metric("Média", f"{stats['média']:,.2f}")
-                col2.metric("Mediana", f"{stats['mediana']:,.2f}")
-                col3.metric("Mínimo", f"{stats['min']:,.2f}")
-                col4.metric("Máximo", f"{stats['max']:,.2f}")
-                
-                if mostrar_boxplots:
-                    st.subheader("Distribuição dos Valores")
-                    criar_boxplot(df_filtrado, metrica_selecionada)
-                
-                if 'Campaign' in df_filtrado.columns:
-                    st.subheader("Campanhas acima da média")
-                    top5 = df_filtrado.nlargest(5, metrica_selecionada)[['Campaign', metrica_selecionada]]
-                    st.dataframe(top5.style.format({metrica_selecionada: "{:,.2f}"}))
-                    
-                    st.subheader("Campanhas abaixo da média")
-                    bottom5 = df_filtrado.nsmallest(5, metrica_selecionada)[['Campaign', metrica_selecionada]]
-                    st.dataframe(bottom5.style.format({metrica_selecionada: "{:,.2f}"}))
-        else:
-            st.warning("Nenhuma métrica numérica disponível para análise")
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("Média", f"{stats['média']:,.2f}")
+            col2.metric("Mediana", f"{stats['mediana']:,.2f}")
+            col3.metric("Mínimo", f"{stats['min']:,.2f}")
+            col4.metric("Máximo", f"{stats['max']:,.2f}")
+            
+            if mostrar_boxplots:
+                st.subheader("Distribuição dos Valores")
+                criar_boxplot(df_filtrado, metrica_selecionada)
+            
+            st.subheader("Campanhas acima da média")
+            top5 = df_filtrado.nlargest(5, metrica_selecionada)[['Campanha', metrica_selecionada]]
+            st.dataframe(top5.style.format({metrica_selecionada: "{:,.2f}"}))
+            
+            st.subheader("Campanhas abaixo da média")
+            bottom5 = df_filtrado.nsmallest(5, metrica_selecionada)[['Campanha', metrica_selecionada]]
+            st.dataframe(bottom5.style.format({metrica_selecionada: "{:,.2f}"}))
     
     with tab3:
         st.subheader("Comparativo Mensal")
         
         if st.session_state.dados_anterior is not None:
-            df_anterior_filtrado = st.session_state.dados_anterior.copy()
+            # Aplica os mesmos filtros ao mês anterior
+            df_anterior_filtrado = st.session_state.dados_anterior[
+                (st.session_state.dados_anterior['Tipo de campanha'].isin(tipo_campanha)) &
+                (st.session_state.dados_anterior['Status da campanha'].isin(status_campanha))
+            ]
             
-            # Aplicar mesmos filtros ao mês anterior
-            if 'Tipo_campanha' in df_anterior_filtrado.columns and tipo_campanha:
-                df_anterior_filtrado = df_anterior_filtrado[df_anterior_filtrado['Tipo_campanha'].isin(tipo_campanha)]
-            if 'Status' in df_anterior_filtrado.columns and status_campanha:
-                df_anterior_filtrado = df_anterior_filtrado[df_anterior_filtrado['Status'].isin(status_campanha)]
-
-            if colunas_numericas:
-                metrica_comparacao = st.selectbox(
-                    "Selecione uma métrica para comparação",
-                    options=colunas_numericas,
-                    key="comparacao_metrica"
-                )
+            metrica_comparacao = st.selectbox(
+                "Selecione uma métrica para comparação",
+                options=colunas_numericas,
+                key="comparacao_metrica"
+            )
+            
+            if metrica_comparacao:
+                variacao = criar_grafico_comparativo(df_filtrado, df_anterior_filtrado, metrica_comparacao)
                 
-                if metrica_comparacao in df_filtrado.columns and metrica_comparacao in df_anterior_filtrado.columns:
-                    variacao = criar_grafico_comparativo(df_filtrado, df_anterior_filtrado, metrica_comparacao)
-                    
-                    st.subheader("Análise Detalhada da Comparação")
-                    
-                    stats_atual = {
-                        'Média': df_filtrado[metrica_comparacao].mean(),
-                        'Mediana': df_filtrado[metrica_comparacao].median(),
-                        'Mínimo': df_filtrado[metrica_comparacao].min(),
-                        'Máximo': df_filtrado[metrica_comparacao].max(),
-                        'Desvio Padrão': df_filtrado[metrica_comparacao].std()
-                    }
-                    
-                    stats_anterior = {
-                        'Média': df_anterior_filtrado[metrica_comparacao].mean(),
-                        'Mediana': df_anterior_filtrado[metrica_comparacao].median(),
-                        'Mínimo': df_anterior_filtrado[metrica_comparacao].min(),
-                        'Máximo': df_anterior_filtrado[metrica_comparacao].max(),
-                        'Desvio Padrão': df_anterior_filtrado[metrica_comparacao].std()
-                    }
-                    
-                    df_comparativo = pd.DataFrame({
-                        'Mês Atual': stats_atual,
-                        'Mês Anterior': stats_anterior
-                    }).T
-                    
-                    try:
-                        df_comparativo['Variação (%)'] = ((df_comparativo.loc['Mês Atual'] - df_comparativo.loc['Mês Anterior']) / 
-                                                        df_comparativo.loc['Mês Anterior']) * 100
-                    except:
-                        df_comparativo['Variação (%)'] = 0
-                    
-                    def color_variation(val):
-                        color = 'red' if val < 0 else 'green' if val > 0 else 'gray'
-                        return f'color: {color}'
-                    
-                    st.dataframe(
-                        df_comparativo.style.format({
-                            'Média': '{:,.2f}',
-                            'Mediana': '{:,.2f}',
-                            'Mínimo': '{:,.2f}',
-                            'Máximo': '{:,.2f}',
-                            'Desvio Padrão': '{:,.2f}',
-                            'Variação (%)': '{:,.1f}%'
-                        }).applymap(color_variation, subset=['Variação (%)'])
-                    )
+                # Tabela comparativa detalhada
+                st.subheader("Análise Detalhada da Comparação")
+                
+                # Calcula estatísticas para ambos os períodos
+                stats_atual = {
+                    'Média': df_filtrado[metrica_comparacao].mean(),
+                    'Mediana': df_filtrado[metrica_comparacao].median(),
+                    'Mínimo': df_filtrado[metrica_comparacao].min(),
+                    'Máximo': df_filtrado[metrica_comparacao].max(),
+                    'Desvio Padrão': df_filtrado[metrica_comparacao].std()
+                }
+                
+                stats_anterior = {
+                    'Média': df_anterior_filtrado[metrica_comparacao].mean(),
+                    'Mediana': df_anterior_filtrado[metrica_comparacao].median(),
+                    'Mínimo': df_anterior_filtrado[metrica_comparacao].min(),
+                    'Máximo': df_anterior_filtrado[metrica_comparacao].max(),
+                    'Desvio Padrão': df_anterior_filtrado[metrica_comparacao].std()
+                }
+                
+                # Cria DataFrame comparativo
+                df_comparativo = pd.DataFrame({
+                    'Mês Atual': stats_atual,
+                    'Mês Anterior': stats_anterior
+                }).T
+                
+                # Calcula variações
+                df_comparativo['Variação (%)'] = ((df_comparativo.loc['Mês Atual'] - df_comparativo.loc['Mês Anterior']) / 
+                                                df_comparativo.loc['Mês Anterior']) * 100
+                
+                # Formatação condicional para a variação
+                def color_variation(val):
+                    color = 'red' if val < 0 else 'green' if val > 0 else 'gray'
+                    return f'color: {color}'
+                
+                st.dataframe(
+                    df_comparativo.style.format({
+                        'Média': '{:,.2f}',
+                        'Mediana': '{:,.2f}',
+                        'Mínimo': '{:,.2f}',
+                        'Máximo': '{:,.2f}',
+                        'Desvio Padrão': '{:,.2f}',
+                        'Variação (%)': '{:,.1f}%'
+                    }).applymap(color_variation, subset=['Variação (%)'])
+                )
         else:
             st.info("ℹ️ Carregue os dados do mês anterior para habilitar a comparação mensal")
     
@@ -411,24 +380,23 @@ if st.session_state.dados_atual is not None:
         st.subheader("Relatório Avançado com IA")
         
         if st.button("Gerar Relatório com Análise Avançada"):
-            if metricas_relatorio:
-                relatorio = gerar_relatorio_llm(df_filtrado, metricas, metricas_relatorio, tipo_relatorio)
-                st.markdown(relatorio)
-                
-                st.download_button(
-                    label="⬇️ Baixar Relatório Completo",
-                    data=relatorio,
-                    file_name=f"relatorio_{tipo_relatorio}_campanhas.md",
-                    mime="text/markdown"
-                )
-            else:
-                st.warning("Selecione pelo menos uma métrica para gerar o relatório")
+            relatorio = gerar_relatorio_llm(df_filtrado, metricas, metricas_relatorio, tipo_relatorio)
+            
+            st.markdown(relatorio)
+            
+            st.download_button(
+                label="⬇️ Baixar Relatório Completo",
+                data=relatorio,
+                file_name=f"relatorio_{tipo_relatorio}_campanhas.md",
+                mime="text/markdown"
+            )
         else:
             st.info("Clique no botão acima para gerar um relatório avançado com análise de IA")
 
 else:
     st.info("ℹ️ Por favor, carregue pelo menos o relatório do mês atual para começar a análise")
 
+# Instruções para configurar a API
 if not gemini_api_key:
     st.markdown("""
     ## 🔑 Configuração da API Gemini
