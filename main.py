@@ -249,16 +249,25 @@ with col2:
 if st.session_state.dados_atual is not None:
     df = st.session_state.dados_atual
     metricas = calcular_metricas(df)
-    colunas_numericas = [col for col in metricas.keys()]
     
+    # Na parte onde definimos as colunas numéricas (substitua a linha original)
+    colunas_numericas = [col for col in df.select_dtypes(include=[np.number]).columns.tolist() if col in df.columns]
+    
+    # E na seção do multiselect, modifique para:
     with st.sidebar:
         st.header("🔧 Configurações de Análise")
         
-        # Seleção de métricas
+        # Verifica se existem colunas numéricas disponíveis
+        metricas_disponiveis = colunas_numericas if len(colunas_numericas) > 0 else []
+        
+        # Seleção de métricas com verificação de valores padrão
+        default_metrics = ['Custo', 'Cliques', 'Impressoes', 'CTR', 'Conversoes']
+        metricas_padrao = [m for m in default_metrics if m in metricas_disponiveis]
+        
         metricas_relatorio = st.multiselect(
             "Selecione as métricas para análise",
-            options=colunas_numericas,
-            default=['Custo', 'Cliques', 'Impressoes', 'CTR', 'Conversoes']
+            options=metricas_disponiveis,
+            default=metricas_padrao[:5] if len(metricas_padrao) > 0 else None
         )
         
         # Tipo de relatório
