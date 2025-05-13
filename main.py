@@ -242,47 +242,45 @@ if st.session_state.dados_atual is not None:
     colunas_numericas = [col for col in metricas.keys() if col in df.columns]
     
     with st.sidebar:
-        st.header("🔧 Configurações de Análise")
+    st.header("🔧 Configurações de Análise")
+    
+    # Verificar se temos dados válidos
+    if st.session_state.dados_atual is not None and not st.session_state.dados_atual.empty:
+        df = st.session_state.dados_atual
         
-        metricas_disponiveis = colunas_numericas if len(colunas_numericas) > 0 else []
-        default_metrics = ['Custo', 'Cliques', 'Impressoes', 'CTR', 'Conversoes']
-        metricas_padrao = [m for m in default_metrics if m in metricas_disponiveis]
-        
-        metricas_relatorio = st.multiselect(
-            "Selecione as métricas para análise",
-            options=metricas_disponiveis,
-            default=metricas_padrao[:5] if len(metricas_padrao) > 0 else None
-        )
-        
-        tipo_relatorio = st.radio(
-            "Tipo de relatório",
-            options=["técnico", "gerencial"],
-            index=0
-        )
-        
+        # Filtros
         st.subheader("Filtros")
-        tipo_campanha = []
-        status_campanha = []
         
+        # Tipo de Campanha
         if 'Tipo_campanha' in df.columns:
+            tipo_values = df['Tipo_campanha'].unique().tolist() if not df['Tipo_campanha'].empty else []
             tipo_campanha = st.multiselect(
                 "Tipo de Campanha",
-                options=df['Tipo_campanha'].unique(),
-                default=df['Tipo_campanha'].unique()
+                options=tipo_values,
+                default=tipo_values
             )
         else:
             st.warning("Coluna 'Tipo de Campanha' não encontrada")
+            tipo_campanha = []
         
+        # Status da Campanha
         if 'Status' in df.columns:
+            status_values = df['Status'].unique().tolist() if not df['Status'].empty else []
             status_campanha = st.multiselect(
                 "Status da Campanha",
-                options=df['Status'].unique(),
-                default=df['Status'].unique()
+                options=status_values,
+                default=status_values
             )
         else:
             st.warning("Coluna 'Status' não encontrada")
+            status_campanha = []
         
         mostrar_boxplots = st.checkbox("Mostrar boxplots das métricas")
+    else:
+        st.warning("Carregue os dados primeiro para configurar os filtros")
+        tipo_campanha = []
+        status_campanha = []
+        mostrar_boxplots = False
     
     # Aplicar filtros apenas para colunas existentes
     df_filtrado = df.copy()
