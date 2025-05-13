@@ -30,6 +30,37 @@ def carregar_dados(arquivo):
         df = pd.read_csv(arquivo, skiprows=2)
         df = df.dropna(how='all')
         
+        # Renomear colunas para nomes mais simples
+        df = df.rename(columns={
+            'Status da campanha': 'Status',
+            'Campanha': 'Campaign',
+            'Nome do orçamento': 'Nome_orcamento',
+            'Código da moeda': 'Moeda',
+            'Orçamento': 'Orcamento',
+            'Tipo de orçamento': 'Tipo_orcamento',
+            'Motivos do status': 'Motivos_status',
+            'Pontuação de otimização': 'Pontuacao_otimizacao',
+            'Tipo de campanha': 'Tipo_campanha',
+            'CPV médio': 'CPV_medio',
+            'Interações': 'Interacoes',
+            'Taxa de interação': 'Taxa_interacao',
+            'Custo': 'Custo',
+            'Impr.': 'Impressoes',
+            'Cliques': 'Cliques',
+            'Conversões': 'Conversoes',
+            'CTR': 'CTR',
+            'CPM médio': 'CPM_medio',
+            'CPC méd.': 'CPC_medio',
+            'Custo / conv.': 'Custo_por_conversao',
+            'Custo médio': 'Custo_medio',
+            'Engajamentos': 'Engajamentos',
+            'IS parte sup. pesq.': 'IS_parte_superior',
+            'IS 1ª posição pesq.': 'IS_primeira_posicao',
+            'Visualizações': 'Visualizacoes',
+            'Tipo de estratégia de lances': 'Estrategia_lances',
+            'Taxa de conv.': 'Taxa_conversao'
+        })
+        
         for col in df.columns:
             if df[col].dtype == 'object':
                 df[col] = df[col].astype(str).str.replace(',', '').str.replace('%', '').str.replace(' ', '')
@@ -49,9 +80,6 @@ def calcular_metricas(df):
     colunas_numericas = df.select_dtypes(include=[np.number]).columns.tolist()
     
     for col in colunas_numericas:
-        if col in ['Campaign ID']:
-            continue
-            
         metricas[col] = {
             'média': df[col].mean(),
             'mediana': df[col].median(),
@@ -218,7 +246,7 @@ with col2:
 if st.session_state.dados_atual is not None:
     df = st.session_state.dados_atual
     metricas = calcular_metricas(df)
-    colunas_numericas = [col for col in metricas.keys() if col != 'Campaign ID']
+    colunas_numericas = [col for col in metricas.keys()]
     
     with st.sidebar:
         st.header("🔧 Configurações de Análise")
@@ -227,7 +255,7 @@ if st.session_state.dados_atual is not None:
         metricas_relatorio = st.multiselect(
             "Selecione as métricas para análise",
             options=colunas_numericas,
-            default=colunas_numericas[:5]
+            default=['Custo', 'Cliques', 'Impressoes', 'CTR', 'Conversoes']
         )
         
         # Tipo de relatório
@@ -241,22 +269,22 @@ if st.session_state.dados_atual is not None:
         st.subheader("Filtros")
         tipo_campanha = st.multiselect(
             "Tipo de Campanha",
-            options=df['Campaign type'].unique(),
-            default=df['Campaign type'].unique()
+            options=df['Tipo_campanha'].unique(),
+            default=df['Tipo_campanha'].unique()
         )
         
         status_campanha = st.multiselect(
             "Status da Campanha",
-            options=df['Campaign status'].unique(),
-            default=df['Campaign status'].unique()
+            options=df['Status'].unique(),
+            default=df['Status'].unique()
         )
         
         mostrar_boxplots = st.checkbox("Mostrar boxplots das métricas")
     
     # Aplica filtros
     df_filtrado = df[
-        (df['Campaign type'].isin(tipo_campanha)) &
-        (df['Campaign status'].isin(status_campanha))
+        (df['Tipo_campanha'].isin(tipo_campanha)) &
+        (df['Status'].isin(status_campanha))
     ]
     
     # Abas principais
@@ -267,8 +295,8 @@ if st.session_state.dados_atual is not None:
         
         col1, col2, col3 = st.columns(3)
         col1.metric("Total de Campanhas", len(df_filtrado))
-        col2.metric("Campanhas Ativas", len(df_filtrado[df_filtrado['Campaign status'] == 'Active']))
-        col3.metric("Campanhas Pausadas", len(df_filtrado[df_filtrado['Campaign status'] == 'Paused']))
+        col2.metric("Campanhas Ativas", len(df_filtrado[df_filtrado['Status'] == 'Ativo']))
+        col3.metric("Campanhas Pausadas", len(df_filtrado[df_filtrado['Status'] == 'Pausado']))
         
         st.dataframe(df_filtrado, use_container_width=True)
     
@@ -307,8 +335,8 @@ if st.session_state.dados_atual is not None:
         if st.session_state.dados_anterior is not None:
             # Aplica os mesmos filtros ao mês anterior
             df_anterior_filtrado = st.session_state.dados_anterior[
-                (st.session_state.dados_anterior['Campaign type'].isin(tipo_campanha)) &
-                (st.session_state.dados_anterior['Campaign status'].isin(status_campanha))
+                (st.session_state.dados_anterior['Tipo_campanha'].isin(tipo_campanha)) &
+                (st.session_state.dados_anterior['Status'].isin(status_campanha))
             ]
             
             metrica_comparacao = st.selectbox(
