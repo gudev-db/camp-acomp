@@ -6,6 +6,8 @@ from google.generativeai import GenerativeModel
 import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime
+from pymongo import MongoClient
+from bson.objectid import ObjectId
 
 # Configuração da página
 st.set_page_config(
@@ -16,6 +18,13 @@ st.set_page_config(
 
 # Título principal
 st.title("📊 Analytics Avançado de Campanhas Digitais")
+
+# Conexão com MongoDB
+client = MongoClient("mongodb+srv://gustavoromao3345:RqWFPNOJQfInAW1N@cluster0.5iilj.mongodb.net/auto_doc?retryWrites=true&w=majority&ssl=true&ssl_cert_reqs=CERT_NONE&tlsAllowInvalidCertificates=true")
+db = client['arquivos_planejamento']
+collection = db['auto_doc']
+banco = client["arquivos_planejamento"]
+db_clientes = banco["clientes"]  # info clientes
 
 # Verifica se a API key do Gemini está configurada
 gemini_api_key = os.getenv("GEMINI_API_KEY")
@@ -118,8 +127,17 @@ def criar_grafico_comparativo(dados_atual, dados_anterior, metrica):
         st.error(f"Erro ao criar gráfico comparativo: {str(e)}")
         return 0
 
-def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio):
-    """Gera um relatório analítico usando LLM"""
+def salvar_relatorio_mongodb(relatorio_data):
+    """Salva o relatório no MongoDB"""
+    try:
+        result = collection.insert_one(relatorio_data)
+        return str(result.inserted_id)
+    except Exception as e:
+        st.error(f"Erro ao salvar no MongoDB: {str(e)}")
+        return None
+
+def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, cliente_info=None):
+    """Gera um relatório analítico usando LLM e salva no MongoDB"""
     if not gemini_api_key:
         return "🔒 Relatório avançado desabilitado. Configure a API key do Gemini para ativar esta funcionalidade."
     
@@ -181,7 +199,24 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio):
         # Gera o conteúdo com o Gemini
         with st.spinner("🧠 Gerando relatório avançado com IA..."):
             response = model.generate_content(prompt)
-            return response.text
+            relatorio_text = response.text
+            
+            # Prepara os dados para salvar no MongoDB
+            relatorio_data = {
+                "tipo": tipo_relatorio,
+                "conteudo": relatorio_text,
+                "metricas_analisadas": colunas_selecionadas,
+                "data_geracao": datetime.now(),
+                "cliente": cliente_info if cliente_info else "Não especificado",
+                "status": "ativo"
+            }
+            
+            # Salva no MongoDB
+            relatorio_id = salvar_relatorio_mongodb(relatorio_data)
+            if relatorio_id:
+                st.success("✅ Relatório salvo no banco de dados com sucesso!")
+            
+            return relatorio_text
         
     except Exception as e:
         return f"Erro ao gerar relatório: {str(e)}"
@@ -193,7 +228,7 @@ if 'dados_atual' not in st.session_state:
     st.session_state.dados_atual = None
     st.session_state.dados_anterior = None
 
-# Seção de upload de arquivos
+# Seção de upload de arquivos e informações do cliente
 col1, col2 = st.columns(2)
 
 with col1:
@@ -221,6 +256,18 @@ with col2:
         if df_anterior is not None:
             st.session_state.dados_anterior = df_anterior
             st.success("✅ Dados do mês anterior carregados com sucesso!")
+
+# Seção de informações do cliente
+with st.expander("ℹ️ Informações do Cliente (Opcional)"):
+    cliente_nome = st.text_input("Nome do Cliente")
+    cliente_id = st.text_input("ID do Cliente (se aplicável)")
+    cliente_tags = st.text_input("Tags (separadas por vírgula)")
+    
+    cliente_info = {
+        "nome": cliente_nome,
+        "id": cliente_id,
+        "tags": [tag.strip() for tag in cliente_tags.split(",")] if cliente_tags else []
+    }
 
 # Verifica se temos dados para análise
 if st.session_state.dados_atual is not None:
@@ -380,7 +427,7 @@ if st.session_state.dados_atual is not None:
         st.subheader("Relatório Avançado com IA")
         
         if st.button("Gerar Relatório com Análise Avançada"):
-            relatorio = gerar_relatorio_llm(df_filtrado, metricas, metricas_relatorio, tipo_relatorio)
+            relatorio = gerar_relatorio_llm(df_filtrado, metricas, metricas_relatorio, tipo_relatorio, cliente_info)
             
             st.markdown(relatorio)
             
@@ -390,6 +437,23 @@ if st.session_state.dados_atual is not None:
                 file_name=f"relatorio_{tipo_relatorio}_campanhas.md",
                 mime="text/markdown"
             )
+            
+            # Mostra histórico de relatórios salvos para este cliente (se houver ID)
+            if cliente_info.get('id'):
+                st.subheader("Histórico de Relatórios")
+                relatorios_anteriores = list(collection.find({
+                    "cliente.id": cliente_info['id'],
+                    "status": "ativo"
+                }).sort("data_geracao", -1).limit(5))
+                
+                if relatorios_anteriores:
+                    for rel in relatorios_anteriores:
+                        with st.expander(f"Relatório de {rel['data_geracao'].strftime('%d/%m/%Y %H:%M')}"):
+                            st.markdown(rel['conteudo'][:500] + "...")  # Mostra apenas um preview
+                            if st.button("Ver completo", key=f"ver_{rel['_id']}"):
+                                st.markdown(rel['conteudo'])
+                else:
+                    st.info("Nenhum relatório anterior encontrado para este cliente")
         else:
             st.info("Clique no botão acima para gerar um relatório avançado com análise de IA")
 
