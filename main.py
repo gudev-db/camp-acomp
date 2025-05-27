@@ -136,7 +136,7 @@ def salvar_relatorio_mongodb(relatorio_data):
         st.error(f"Erro ao salvar no MongoDB: {str(e)}")
         return None
 
-def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, cliente_info=None):
+def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, cliente_info=None, df_anterior=None):
     """Gera um relatório analítico usando LLM e salva no MongoDB"""
     if not gemini_api_key:
         return "🔒 Relatório avançado desabilitado. Configure a API key do Gemini para ativar esta funcionalidade."
@@ -145,15 +145,30 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
         # Prepara os dados para o LLM
         dados_para_llm = ""
         
-        # Resumo estatístico
-        dados_para_llm += "## Resumo Estatístico:\n"
+        # Resumo estatístico do período atual
+        dados_para_llm += "## Resumo Estatístico - Mês Atual:\n"
         for col in colunas_selecionadas:
             if col in metricas:
                 stats = metricas[col]
                 dados_para_llm += f"- {col}: Média={stats['média']:.2f}, Mediana={stats['mediana']:.2f}, Min={stats['min']:.2f}, Max={stats['max']:.2f}\n"
         
+        # Se tivermos dados do mês anterior, adicionamos análise comparativa
+        if df_anterior is not None:
+            metricas_anterior = calcular_metricas(df_anterior)
+            dados_para_llm += "\n## Análise Comparativa Mensal:\n"
+            
+            # Calcula variações para cada métrica
+            for col in colunas_selecionadas:
+                if col in metricas and col in metricas_anterior:
+                    media_atual = metricas[col]['média']
+                    media_anterior = metricas_anterior[col]['média']
+                    variacao = ((media_atual - media_anterior) / media_anterior) * 100 if media_anterior != 0 else 0
+                    
+                    dados_para_llm += (f"- {col}: {media_atual:.2f} (Mês Atual) vs {media_anterior:.2f} (Mês Anterior) → "
+                                      f"{'↑' if variacao > 0 else '↓'} {abs(variacao):.1f}%\n")
+        
         # Top e bottom performers
-        dados_para_llm += "\n## Melhores Campanhas:\n"
+        dados_para_llm += "\n## Melhores Campanhas - Mês Atual:\n"
         for col in colunas_selecionadas[:3]:  # Limita a 3 métricas para não ficar muito longo
             if col in df.columns:
                 top3 = df.nlargest(3, col)[['Campanha', col]]
@@ -161,8 +176,27 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                 for _, row in top3.iterrows():
                     dados_para_llm += f"  - {row['Campanha']}: {row[col]:.2f}\n"
         
+        # Análise de correlação entre métricas (quando temos ambos períodos)
+        if df_anterior is not None:
+            dados_para_llm += "\n## Insights de Correlação:\n"
+            dados_para_llm += "- Comparação automática entre variações de métricas:\n"
+            
+            # Calcula variações percentuais para todas as métricas
+            variacoes = {}
+            for col in colunas_selecionadas:
+                if col in metricas and col in metricas_anterior:
+                    media_atual = metricas[col]['média']
+                    media_anterior = metricas_anterior[col]['média']
+                    variacoes[col] = ((media_atual - media_anterior) / media_anterior) * 100 if media_anterior != 0 else 0
+            
+            # Adiciona exemplos de insights combinados
+            dados_para_llm += "  - Exemplo de análise combinada que será gerada pelo LLM:\n"
+            dados_para_llm += "    * Se CTR aumentou mas Conversões caíram, pode indicar tráfego menos qualificado\n"
+            dados_para_llm += "    * Se Custo por Conversão caiu e Conversões aumentaram, indica eficiência melhorada\n"
+            dados_para_llm += "    * Se Impressões caíram mas Engajamentos aumentaram, pode indicar público mais segmentado\n"
+        
         # Inicializa o modelo Gemini
-        model = GenerativeModel('gemini-1.5-flash')
+        model = GenerativeModel('gemini-2.0-flash')
         
         # Prompt específico baseado no tipo de relatório selecionado
         if tipo_relatorio == "técnico":
@@ -171,12 +205,18 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
             
             1. Introdução com visão geral
             2. Análise de cada métrica selecionada
-            3. Insights sobre desempenho
-            4. Recomendações técnicas específicas
-            5. Conclusão com resumo executivo
+            3. Comparativo mensal detalhado (quando houver dados do mês anterior)
+            4. Insights sobre correlações entre métricas e variações
+            5. Recomendações técnicas específicas baseadas nas tendências
+            6. Conclusão com resumo executivo
             
             Dados:
             {dados_para_llm}
+            
+            Destaque especialmente:
+            - Relações entre métricas que evoluíram em direções opostas
+            - Padrões interessantes nas variações percentuais
+            - Correlações entre mudanças em métricas de desempenho e de custo
             
             Formate o relatório em markdown com títulos e subtítulos. Seja detalhado e técnico.
             """
@@ -185,13 +225,19 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
             Você é um estrategista de marketing. Crie um relatório GERENCIAL em português com:
             
             1. Visão geral simplificada
-            2. Principais destaques e preocupações
-            3. Análise estratégica do desempenho
-            4. Recomendações de alto nível
-            5. Próximos passos sugeridos
+            2. Principais destaques e preocupações (especialmente comparações mensais)
+            3. Análise estratégica do desempenho com foco em tendências
+            4. Relações entre métricas que impactam os resultados
+            5. Recomendações de alto nível baseadas nas variações observadas
+            6. Próximos passos sugeridos
             
             Dados:
             {dados_para_llm}
+            
+            Enfatize:
+            - O que melhorou/piorou em relação ao mês anterior
+            - Relações entre métricas que explicam os resultados
+            - Impacto estratégico das variações observadas
             
             Formate o relatório em markdown. Use linguagem acessível para não-especialistas.
             """
@@ -208,7 +254,8 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                 "metricas_analisadas": colunas_selecionadas,
                 "data_geracao": datetime.now(),
                 "cliente": cliente_info if cliente_info else "Não especificado",
-                "status": "ativo"
+                "status": "ativo",
+                "comparativo_mensal": df_anterior is not None
             }
             
             # Salva no MongoDB
@@ -220,6 +267,8 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
         
     except Exception as e:
         return f"Erro ao gerar relatório: {str(e)}"
+        
+       
 
 # Interface do usuário ===============================================
 
@@ -427,8 +476,15 @@ if st.session_state.dados_atual is not None:
         st.subheader("Relatório Avançado com IA")
         
         if st.button("Gerar Relatório com Análise Avançada"):
-            relatorio = gerar_relatorio_llm(df_filtrado, metricas, metricas_relatorio, tipo_relatorio, cliente_info)
-            
+            relatorio = gerar_relatorio_llm(
+                df_filtrado, 
+                metricas, 
+                metricas_relatorio, 
+                tipo_relatorio, 
+                cliente_info,
+                st.session_state.dados_anterior if st.session_state.dados_anterior is not None else None
+            )
+                        
             st.markdown(relatorio)
             
             st.download_button(
