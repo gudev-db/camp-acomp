@@ -390,7 +390,8 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     Destaque os pontos mais relevantes e preocupações:
                     - Comparações mensais
                     - Variações significativas
-                    - Impacto estratégico
+                    - Impacto estratégico dado o tipo de campanha
+                    - Alinhamento com objetivos dado o tipo de campanha
                     
                     Dados: {dados_para_llm}
                     Relação métrica vs tipo de campanha: {rel_metrica}
@@ -399,7 +400,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     Analise o desempenho com foco em tendências:
                     - Padrões de longo prazo
                     - Eficácia estratégica
-                    - Alinhamento com objetivos
+                    - Alinhamento com objetivos dado o tipo de campanha
                     
                     Dados: {dados_para_llm}
                     Relação métrica vs tipo de campanha: {rel_metrica}
