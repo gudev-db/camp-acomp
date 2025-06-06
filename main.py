@@ -312,6 +312,8 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     ("1. Introdução com visão geral", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
 
+                    Dê apenas um panorama geral sobre os dados com os pontos:
+
                     - Visão geral do desempenho das campanhas
                     - Contexto sobre os dados analisados
                     - Destaque inicial dos pontos mais relevantes
@@ -322,7 +324,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     ("2. Análise de cada métrica selecionada", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
 
-                    Faça uma análise técnica detalhada de cada métrica selecionada, incluindo:
+                    Faça apenas uma análise técnica detalhada de cada métrica selecionada, com os pontos:
                     - Significado de cada métrica
                     - Performance em relação aos benchmarks do setor
                     - Relação com o tipo de campanha
@@ -332,7 +334,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     """),
                     ("3. Comparativo mensal detalhado", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
-
+                    Faça apenas um comparativo mensal detalhado com os pontos:
                     Analise comparativamente os dados com o mês anterior (quando disponível):
                     - Variações percentuais significativas
                     - Tendências identificadas
@@ -342,8 +344,8 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     """),
                     ("4. Insights sobre correlações", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
-
-                    Identifique correlações importantes entre as métricas:
+                
+                    Apenas Identifique correlações importantes entre as métricas com os pontos:
                     - Relações causa-efeito
                     - Padrões de desempenho
                     - Anomalias e outliers
@@ -353,7 +355,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     """),
                     ("5. Recomendações técnicas", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
-                    Gere recomendações técnicas específicas baseadas na análise:
+                    Apenas gere recomendações técnicas específicas baseadas na análise com os pontos:
                     - Ajustes em campanhas
                     - Otimizações sugeridas
                     - Alertas sobre problemas identificados
@@ -363,7 +365,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     """),
                     ("6. Conclusão com resumo executivo", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
-                    Conclua com um resumo executivo técnico:
+                    Apenas Conclua com um resumo executivo técnico com os pontos:
                     - Principais achados
                     - Recomendações prioritárias
                     - Próximos passos sugeridos
@@ -376,7 +378,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                 prompts = [
                     ("1. Visão geral simplificada", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
-                    Você é um estrategista de marketing. Gere uma visão geral simplificada em português com:
+                    Você é um estrategista de marketing. Apenas Gere uma visão geral simplificada em português com os pontos:
                     - Principais resultados
                     - Destaques e preocupações
                     - Contexto estratégico
@@ -387,6 +389,8 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     ("2. Principais destaques e preocupações", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
                     Destaque os pontos mais relevantes e preocupações:
+
+                    Apenas apresente os principais destaques e preocupações com os pontos:
                     - Comparações mensais
                     - Variações significativas
                     - Impacto estratégico dado o tipo de campanha
@@ -397,7 +401,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     """),
                     ("3. Análise estratégica do desempenho", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
-                    Analise o desempenho com foco em tendências:
+                    Apenas Analise o desempenho com foco em tendências com os pontos:
                     - Padrões de longo prazo
                     - Eficácia estratégica
                     - Alinhamento com objetivos dado o tipo de campanha
@@ -408,7 +412,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     ("4. Relações entre métricas", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
 
-                    Explique como as métricas se relacionam e impactam os resultados:
+                    Apenas Explique como as métricas se relacionam e impactam os resultados com os pontos:
                     - Conexões importantes
                     - Trade-offs identificados
                     - Sinergias encontradas
@@ -420,7 +424,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     """),
                     ("5. Recomendações de alto nível", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
-                    Gere recomendações estratégicas:
+                    Apenas Gere recomendações estratégicas com os pontos:
                     - Direcionamentos gerais
                     - Priorizações sugeridas
                     - Ajustes recomendados
@@ -430,7 +434,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     """),
                     ("6. Próximos passos sugeridos", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
-                    Defina os próximos passos estratégicos:
+                    Apenas Defina os próximos passos estratégicos com os pontos:
                     - Ações imediatas
                     - Monitoramentos necessários
                     - Planejamento futuro
