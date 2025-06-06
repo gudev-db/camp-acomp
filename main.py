@@ -17,91 +17,80 @@ st.set_page_config(
 )
 
 rel_metrica = '''
-###BEGIN RELACAO METRICA VS TIPO DE CAMPANHA###
-            📌 Search (Pesquisa)
-            CTR (Taxa de Cliques) - Principal indicador de relevância do anúncio
+           ###BEGIN RELACAO METRICA VS TIPO DE CAMPANHA###
+            Tipo: 📌 Search (Pesquisa) -> Atenção para as métricas:
+            *O que é:* Campanhas de busca no Google que aparecem quando usuários pesquisam por termos relacionados.  
+            *Objetivos:* Capturar demanda existente, gerar leads/vendas com alta intenção de compra.  
+            *Métricas-chave:*
+            CTR (Taxa de Cliques) - Principal indicador de relevância do anúncio  
+            Conversões - Objetivo final das campanhas de busca  
+            CPC médio (Custo por Clique) - Custo da aquisição de tráfego  
+            Custo por conversão - Eficiência no ROI  
+            IS parte superior pesquisa (Impression Share) - Visibilidade nos melhores posicionamentos  
+            Taxa de conversão - Eficácia da landing page  
             
-            Conversões - Objetivo final das campanhas de busca
+            Tipo: 🎯 Performance Max (Pmax) -> Atenção para as métricas:
+            *O que é:* Campanhas automatizadas que usam todos os inventários do Google (YouTube, Display, Search etc.).  
+            *Objetivos:* Maximizar conversões com orçamento otimizado automaticamente.  
+            *Métricas-chave:*
+            Conversões - Métrica principal deste tipo de campanha  
+            Custo por conversão - Eficiência de custo  
+            CTR - Engajamento com os anúncios  
+            Impressões - Alcance da campanha  
+            Taxa de conversão - Eficácia do funnel  
             
-            CPC médio (Custo por Clique) - Custo da aquisição de tráfego
+            Tipo: 📢 Display -> Atenção para as métricas:
+            *O que é:* Anúncios visuais em sites parceiros do Google.  
+            *Objetivos:* Aumentar awareness, remarketing e construção de marca.  
+            *Métricas-chave:*
+            Impressões - Alcance da campanha  
+            CPM médio (Custo por Mil Impressões) - Custo da exposição  
+            CTR - Engajamento com os banners  
+            Conversões (se for o objetivo)  
+            Visualizações (para creatives interativos)  
             
-            Custo por conversão - Eficiência no ROI
+            Tipo: 📹 Video -> Atenção para as métricas:
+            *O que é:* Anúncios em formato de vídeo no YouTube e parceiros.  
+            *Objetivos:* Engajamento emocional, storytelling de marca e consideração.  
+            *Métricas-chave:*
+            Visualizações (Views) - Pessoas que assistiram o vídeo  
+            CPV médio (Custo por Visualização) - Custo da atenção  
+            Engajamentos - Interações com o vídeo  
+            Taxa de interação - % de quem interagiu  
+            Conversões (se for campanha de conversão)  
             
-            IS parte superior pesquisa (Impression Share) - Visibilidade nos melhores posicionamentos
+            Tipo: 🔍 Discovery -> Atenção para as métricas:
+            *O que é:* Anúncios nativos no Discover, Gmail e YouTube Home.  
+            *Objetivos:* Descobrimento de novos clientes com conteúdo relevante.  
+            *Métricas-chave:*
+            CTR - Relevância dos anúncios  
+            Conversões - Resultados concretos  
+            CPC médio - Custo da descoberta  
+            Impressões - Alcance orgânico+paid  
+            Taxa de conversão - Eficácia pós-clique  
             
-            Taxa de conversão - Eficácia da landing page
-            
-            🎯 Performance Max (Pmax)
-            Conversões - Métrica principal deste tipo de campanha
-            
-            Custo por conversão - Eficiência de custo
-            
-            CTR - Engajamento com os anúncios
-            
-            Impressões - Alcance da campanha
-            
-            Taxa de conversão - Eficácia do funnel
-            
-            📢 Display
-            Impressões - Alcance da campanha
-            
-            CPM médio (Custo por Mil Impressões) - Custo da exposição
-            
-            CTR - Engajamento com os banners
-            
-            Conversões (se for o objetivo)
-            
-            Visualizações (para creatives interativos)
-            
-            📹 Video
-            Visualizações (Views) - Pessoas que assistiram o vídeo
-            
-            CPV médio (Custo por Visualização) - Custo da atenção
-            
-            Engajamentos - Interações com o vídeo
-            
-            Taxa de interação - % de quem interagiu
-            
-            Conversões (se for campanha de conversão)
-            
-            🔍 Discovery
-            CTR - Relevância dos anúncios
-            
-            Conversões - Resultados concretos
-            
-            CPC médio - Custo da descoberta
-            
-            Impressões - Alcance orgânico+paid
-            
-            Taxa de conversão - Eficácia pós-clique
-            
-            🏷️ Alcance (Reach)
-            Impressões - Quantas vezes foi exibido
-            
-            CPM médio - Custo do alcance
-            
-            Frequência (calculada: Impressões/Únicos) - Número médio de visualizações por usuário
-            
-            Engajamentos - Interações com o conteúdo
+            Tipo: 🏷️ Alcance (Reach) -> Atenção para as métricas:
+            *O que é:* Campanhas focadas em maximizar alcance único.  
+            *Objetivos:* Aumentar awareness de marca com frequência controlada.  
+            *Métricas-chave:*
+            Impressões - Quantas vezes foi exibido  
+            CPM médio - Custo do alcance  
+            Frequência (calculada: Impressões/Únicos) - Número médio de visualizações por usuário  
+            Engajamentos - Interações com o conteúdo  
             
             📊 Métricas Universais Importantes
             (Relevantes para todos os tipos)
             
-            Custo - Investimento total
-            
-            Orçamento vs Custo - Comparação planejado vs realizado
-            
-            Pontuação de otimização - Saúde geral da campanha
-            
-            Status da campanha - Campanhas ativas/pausadas
+            Custo - Investimento total  
+            Orçamento vs Custo - Comparação planejado vs realizado  
+            Pontuação de otimização - Saúde geral da campanha  
+            Status da campanha - Campanhas ativas/pausadas  
             
             📉 Métricas de Qualidade
-            IS parte superior pesquisa (para Search) - Posicionamento premium
-            
-            IS 1ª posição pesquisa (para Search) - Liderança nos resultados
-            
-            Taxa de interação (para Video/Display) - Engajamento qualificado
-            ###END RELACAO METRICA VS CAMPANHA###
+            IS parte superior pesquisa (para Search) - Posicionamento premium  
+            IS 1ª posição pesquisa (para Search) - Liderança nos resultados  
+            Taxa de interação (para Video/Display) - Engajamento qualificado  
+###END RELACAO METRICA VS CAMPANHA###
 '''
 
 # Título principal
