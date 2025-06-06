@@ -308,316 +308,147 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
         # Inicializa o modelo Gemini
         model = GenerativeModel('gemini-2.0-flash')
         
-        # Prompt específico baseado no tipo de relatório selecionado
-        if tipo_relatorio == "técnico":
-            prompt_1 = f"""
-            Você é um analista de marketing digital senior. Analise os dados de campanhas e gere um relatório TÉCNICO detalhado em português com:
-            
-            1. Introdução com visão geral
-
-            
-            Dados:
-            {dados_para_llm}
-
-            Relação métrica vs tipo de campanha:
-            {rel_metrica}
-            
-            Destaque especialmente:
-            - Relações entre métricas que evoluíram em direções opostas
-            - Padrões interessantes nas variações percentuais
-            - Correlações entre mudanças em métricas de desempenho e de custo
-            - Correlações entre mudanças das métricas de uma forma que você consiga tirar insights profundos sobre a performance das campanhas e detectar pontos de melhoria
-            - Leve em consideração o tipo das campanhas (que podem ser identificadas em seus nomes) para avaliar as métricas chave
-            
-            
-            Formate o relatório em markdown com títulos e subtítulos. Seja detalhado e técnico.
-            """
-
-            prompt_2 = f"""
-            Você é um analista de marketing digital senior. Analise os dados de campanhas e gere um relatório TÉCNICO detalhado em português com:
-            
-            2. Análise de cada métrica selecionada
-
-            
-            Dados:
-            {dados_para_llm}
-
-            Relação métrica vs tipo de campanha:
-            {rel_metrica}
-            
-            Destaque especialmente:
-            - Relações entre métricas que evoluíram em direções opostas
-            - Padrões interessantes nas variações percentuais
-            - Correlações entre mudanças em métricas de desempenho e de custo
-            - Correlações entre mudanças das métricas de uma forma que você consiga tirar insights profundos sobre a performance das campanhas e detectar pontos de melhoria
-            - Leve em consideração o tipo das campanhas (que podem ser identificadas em seus nomes) para avaliar as métricas chave
-            
-            
-            Formate o relatório em markdown com títulos e subtítulos. Seja detalhado e técnico.
-            """
-
-            prompt_3 = f"""
-            Você é um analista de marketing digital senior. Analise os dados de campanhas e gere um relatório TÉCNICO detalhado em português com:
-            
-
-            3. Comparativo mensal detalhado (quando houver dados do mês anterior)
-
-            
-            Dados:
-            {dados_para_llm}
-
-            Relação métrica vs tipo de campanha:
-            {rel_metrica}
-            
-            Destaque especialmente:
-            - Relações entre métricas que evoluíram em direções opostas
-            - Padrões interessantes nas variações percentuais
-            - Correlações entre mudanças em métricas de desempenho e de custo
-            - Correlações entre mudanças das métricas de uma forma que você consiga tirar insights profundos sobre a performance das campanhas e detectar pontos de melhoria
-            - Leve em consideração o tipo das campanhas (que podem ser identificadas em seus nomes) para avaliar as métricas chave
-            
-            
-            Formate o relatório em markdown com títulos e subtítulos. Seja detalhado e técnico.
-            """
-
-            prompt_4 = f"""
-            Você é um analista de marketing digital senior. Analise os dados de campanhas e gere um relatório TÉCNICO detalhado em português com:
-            
-
-            4. Insights sobre correlações entre métricas e variações
-
-            
-            Dados:
-            {dados_para_llm}
-
-            Relação métrica vs tipo de campanha:
-            {rel_metrica}
-            
-            Destaque especialmente:
-            - Relações entre métricas que evoluíram em direções opostas
-            - Padrões interessantes nas variações percentuais
-            - Correlações entre mudanças em métricas de desempenho e de custo
-            - Correlações entre mudanças das métricas de uma forma que você consiga tirar insights profundos sobre a performance das campanhas e detectar pontos de melhoria
-            - Leve em consideração o tipo das campanhas (que podem ser identificadas em seus nomes) para avaliar as métricas chave
-            
-            
-            Formate o relatório em markdown com títulos e subtítulos. Seja detalhado e técnico.
-            """
-
-            prompt_5 = f"""
-            Você é um analista de marketing digital senior. Analise os dados de campanhas e gere um relatório TÉCNICO detalhado em português com:
-            
-
-            5. Recomendações técnicas específicas baseadas nas tendências
-            
-            Dados:
-            {dados_para_llm}
-
-            Relação métrica vs tipo de campanha:
-            {rel_metrica}
-            
-            Destaque especialmente:
-            - Relações entre métricas que evoluíram em direções opostas
-            - Padrões interessantes nas variações percentuais
-            - Correlações entre mudanças em métricas de desempenho e de custo
-            - Correlações entre mudanças das métricas de uma forma que você consiga tirar insights profundos sobre a performance das campanhas e detectar pontos de melhoria
-            - Leve em consideração o tipo das campanhas (que podem ser identificadas em seus nomes) para avaliar as métricas chave
-            
-            
-            Formate o relatório em markdown com títulos e subtítulos. Seja detalhado e técnico.
-            """
-
-            prompt_6 = f"""
-            Você é um analista de marketing digital senior. Analise os dados de campanhas e gere um relatório TÉCNICO detalhado em português com:
-            
-
-            6. Conclusão com resumo executivo
-            
-            Dados:
-            {dados_para_llm}
-
-            Relação métrica vs tipo de campanha:
-            {rel_metrica}
-            
-            Destaque especialmente:
-            - Relações entre métricas que evoluíram em direções opostas
-            - Padrões interessantes nas variações percentuais
-            - Correlações entre mudanças em métricas de desempenho e de custo
-            - Correlações entre mudanças das métricas de uma forma que você consiga tirar insights profundos sobre a performance das campanhas e detectar pontos de melhoria
-            - Leve em consideração o tipo das campanhas (que podem ser identificadas em seus nomes) para avaliar as métricas chave
-            
-            
-            Formate o relatório em markdown com títulos e subtítulos. Seja detalhado e técnico.
-            """
-        else:
-            prompt_1 = f"""
-            Você é um estrategista de marketing. Crie um relatório GERENCIAL em português com:
-            
-            1. Visão geral simplificada
-
-            
-            Dados:
-            {dados_para_llm}
-
-            Relação métrica vs tipo de campanha:
-            {rel_metrica}
-            
-            Enfatize:
-            - Relações entre métricas que evoluíram em direções opostas
-            - Padrões interessantes nas variações percentuais
-            - Correlações entre mudanças em métricas de desempenho e de custo
-            - Correlações entre mudanças das métricas de uma forma que você consiga tirar insights profundos sobre a performance das campanhas e detectar pontos de melhoria
-            - Leve em consideração o tipo das campanhas (que podem ser identificadas em seus nomes) para avaliar as métricas chave
-            
-            
-            
-            Formate o relatório em markdown. Use linguagem acessível para não-especialistas."""
-
-            prompt_2 = f"""
-            Você é um estrategista de marketing. Crie um relatório GERENCIAL em português com:
-            
-            2. Principais destaques e preocupações (especialmente comparações mensais)
-
-            
-            Dados:
-            {dados_para_llm}
-
-            Relação métrica vs tipo de campanha:
-            {rel_metrica}
-            
-            Enfatize:
-            - Relações entre métricas que evoluíram em direções opostas
-            - Padrões interessantes nas variações percentuais
-            - Correlações entre mudanças em métricas de desempenho e de custo
-            - Correlações entre mudanças das métricas de uma forma que você consiga tirar insights profundos sobre a performance das campanhas e detectar pontos de melhoria
-            - Leve em consideração o tipo das campanhas (que podem ser identificadas em seus nomes) para avaliar as métricas chave
-            
-            
-            
-            Formate o relatório em markdown. Use linguagem acessível para não-especialistas."""
-
-            prompt_3 = f"""
-            Você é um estrategista de marketing. Crie um relatório GERENCIAL em português com:
-            
-
-            3. Análise estratégica do desempenho com foco em tendências
-
-            
-            Dados:
-            {dados_para_llm}
-
-            Relação métrica vs tipo de campanha:
-            {rel_metrica}
-            
-            Enfatize:
-            - Relações entre métricas que evoluíram em direções opostas
-            - Padrões interessantes nas variações percentuais
-            - Correlações entre mudanças em métricas de desempenho e de custo
-            - Correlações entre mudanças das métricas de uma forma que você consiga tirar insights profundos sobre a performance das campanhas e detectar pontos de melhoria
-            - Leve em consideração o tipo das campanhas (que podem ser identificadas em seus nomes) para avaliar as métricas chave
-            
-            
-            
-            Formate o relatório em markdown. Use linguagem acessível para não-especialistas."""
-
-            prompt_4 = f"""
-            Você é um estrategista de marketing. Crie um relatório GERENCIAL em português com:
-            
-
-            4. Relações entre métricas que impactam os resultados
-
-            
-            Dados:
-            {dados_para_llm}
-
-            Relação métrica vs tipo de campanha:
-            {rel_metrica}
-            
-            Enfatize:
-            - Relações entre métricas que evoluíram em direções opostas
-            - Padrões interessantes nas variações percentuais
-            - Correlações entre mudanças em métricas de desempenho e de custo
-            - Correlações entre mudanças das métricas de uma forma que você consiga tirar insights profundos sobre a performance das campanhas e detectar pontos de melhoria
-            - Leve em consideração o tipo das campanhas (que podem ser identificadas em seus nomes) para avaliar as métricas chave
-            
-            
-            
-            Formate o relatório em markdown. Use linguagem acessível para não-especialistas."""
-
-            prompt_5 = f"""
-            Você é um estrategista de marketing. Crie um relatório GERENCIAL em português com:
-            
-
-            5. Recomendações de alto nível baseadas nas variações observadas
-
-            
-            Dados:
-            {dados_para_llm}
-
-            Relação métrica vs tipo de campanha:
-            {rel_metrica}
-            
-            Enfatize:
-            - Relações entre métricas que evoluíram em direções opostas
-            - Padrões interessantes nas variações percentuais
-            - Correlações entre mudanças em métricas de desempenho e de custo
-            - Correlações entre mudanças das métricas de uma forma que você consiga tirar insights profundos sobre a performance das campanhas e detectar pontos de melhoria
-            - Leve em consideração o tipo das campanhas (que podem ser identificadas em seus nomes) para avaliar as métricas chave
-            
-            
-            
-            Formate o relatório em markdown. Use linguagem acessível para não-especialistas."""
-
-            prompt_6 = f"""
-            Você é um estrategista de marketing. Crie um relatório GERENCIAL em português com:
-            
-
-            6. Próximos passos sugeridos
-            
-            Dados:
-            {dados_para_llm}
-
-            Relação métrica vs tipo de campanha:
-            {rel_metrica}
-            
-            Enfatize:
-            - Relações entre métricas que evoluíram em direções opostas
-            - Padrões interessantes nas variações percentuais
-            - Correlações entre mudanças em métricas de desempenho e de custo
-            - Correlações entre mudanças das métricas de uma forma que você consiga tirar insights profundos sobre a performance das campanhas e detectar pontos de melhoria
-            - Leve em consideração o tipo das campanhas (que podem ser identificadas em seus nomes) para avaliar as métricas chave
-            
-            
-            
-            Formate o relatório em markdown. Use linguagem acessível para não-especialistas."""
-
-           
-        
         # Gera o conteúdo com o Gemini
         with st.spinner("🧠 Gerando relatório avançado com IA..."):
-            response_1 = model.generate_content(prompt_1)
-            response_2 = model.generate_content(prompt_2)
-            response_3 = model.generate_content(prompt_3)
-            response_4 = model.generate_content(prompt_4)
-            response_5 = model.generate_content(prompt_5)
-            response_6 = model.generate_content(prompt_6)
-
-            relatorio1_text = response_1.text
-            relatorio2_text = response_2.text
-            relatorio3_text = response_3.text
-            relatorio4_text = response_4.text
-            relatorio5_text = response_5.text
-            relatorio6_text = response_6.text
+            # Dicionário para armazenar todas as partes do relatório
+            relatorio_completo = {
+                "partes": [],
+                "texto_completo": ""
+            }
+            
+            # Gera cada parte do relatório
+            prompts = []
+            if tipo_relatorio == "técnico":
+                prompts = [
+                    ("1. Introdução com visão geral", f"""
+                    Você é um analista de marketing digital senior. Gere a introdução de um relatório TÉCNICO detalhado em português com:
+                    - Visão geral do desempenho das campanhas
+                    - Contexto sobre os dados analisados
+                    - Destaque inicial dos pontos mais relevantes
+                    
+                    Dados: {dados_para_llm}
+                    Relação métrica vs tipo de campanha: {rel_metrica}
+                    """),
+                    ("2. Análise de cada métrica selecionada", f"""
+                    Faça uma análise técnica detalhada de cada métrica selecionada, incluindo:
+                    - Significado de cada métrica
+                    - Performance em relação aos benchmarks do setor
+                    - Relação com o tipo de campanha
+                    
+                    Dados: {dados_para_llm}
+                    Relação métrica vs tipo de campanha: {rel_metrica}
+                    """),
+                    ("3. Comparativo mensal detalhado", f"""
+                    Analise comparativamente os dados com o mês anterior (quando disponível):
+                    - Variações percentuais significativas
+                    - Tendências identificadas
+                    - Possíveis causas para as variações
+                    
+                    Dados: {dados_para_llm}
+                    Relação métrica vs tipo de campanha: {rel_metrica}
+                    """),
+                    ("4. Insights sobre correlações", f"""
+                    Identifique correlações importantes entre as métricas:
+                    - Relações causa-efeito
+                    - Padrões de desempenho
+                    - Anomalias e outliers
+                    
+                    Dados: {dados_para_llm}
+                    Relação métrica vs tipo de campanha: {rel_metrica}
+                    """),
+                    ("5. Recomendações técnicas", f"""
+                    Gere recomendações técnicas específicas baseadas na análise:
+                    - Ajustes em campanhas
+                    - Otimizações sugeridas
+                    - Alertas sobre problemas identificados
+                    
+                    Dados: {dados_para_llm}
+                    Relação métrica vs tipo de campanha: {rel_metrica}
+                    """),
+                    ("6. Conclusão com resumo executivo", f"""
+                    Conclua com um resumo executivo técnico:
+                    - Principais achados
+                    - Recomendações prioritárias
+                    - Próximos passos sugeridos
+                    
+                    Dados: {dados_para_llm}
+                    Relação métrica vs tipo de campanha: {rel_metrica}
+                    """)
+                ]
+            else:
+                prompts = [
+                    ("1. Visão geral simplificada", f"""
+                    Você é um estrategista de marketing. Gere uma visão geral simplificada em português com:
+                    - Principais resultados
+                    - Destaques e preocupações
+                    - Contexto estratégico
+                    
+                    Dados: {dados_para_llm}
+                    Relação métrica vs tipo de campanha: {rel_metrica}
+                    """),
+                    ("2. Principais destaques e preocupações", f"""
+                    Destaque os pontos mais relevantes e preocupações:
+                    - Comparações mensais
+                    - Variações significativas
+                    - Impacto estratégico
+                    
+                    Dados: {dados_para_llm}
+                    Relação métrica vs tipo de campanha: {rel_metrica}
+                    """),
+                    ("3. Análise estratégica do desempenho", f"""
+                    Analise o desempenho com foco em tendências:
+                    - Padrões de longo prazo
+                    - Eficácia estratégica
+                    - Alinhamento com objetivos
+                    
+                    Dados: {dados_para_llm}
+                    Relação métrica vs tipo de campanha: {rel_metrica}
+                    """),
+                    ("4. Relações entre métricas", f"""
+                    Explique como as métricas se relacionam e impactam os resultados:
+                    - Conexões importantes
+                    - Trade-offs identificados
+                    - Sinergias encontradas
+                    
+                    Dados: {dados_para_llm}
+                    Relação métrica vs tipo de campanha: {rel_metrica}
+                    """),
+                    ("5. Recomendações de alto nível", f"""
+                    Gere recomendações estratégicas:
+                    - Direcionamentos gerais
+                    - Priorizações sugeridas
+                    - Ajustes recomendados
+                    
+                    Dados: {dados_para_llm}
+                    Relação métrica vs tipo de campanha: {rel_metrica}
+                    """),
+                    ("6. Próximos passos sugeridos", f"""
+                    Defina os próximos passos estratégicos:
+                    - Ações imediatas
+                    - Monitoramentos necessários
+                    - Planejamento futuro
+                    
+                    Dados: {dados_para_llm}
+                    Relação métrica vs tipo de campanha: {rel_metrica}
+                    """)
+                ]
+            
+            # Gera cada parte do relatório
+            for titulo, prompt in prompts:
+                with st.spinner(f"Gerando {titulo.lower()}..."):
+                    response = model.generate_content(prompt)
+                    parte_relatorio = {
+                        "titulo": titulo,
+                        "conteudo": response.text
+                    }
+                    relatorio_completo["partes"].append(parte_relatorio)
+                    relatorio_completo["texto_completo"] += f"\n\n## {titulo}\n\n{response.text}"
             
             # Prepara os dados para salvar no MongoDB
             relatorio_data = {
                 "tipo": tipo_relatorio,
-                "conteudo1": relatorio1_text,
-                "conteudo2": relatorio2_text,
-                "conteudo3": relatorio3_text,
-                "conteudo4": relatorio4_text,
-                "conteudo5": relatorio5_text,
-                "conteudo6": relatorio6_text,
+                "partes": relatorio_completo["partes"],
+                "texto_completo": relatorio_completo["texto_completo"],
                 "metricas_analisadas": colunas_selecionadas,
                 "data_geracao": datetime.now(),
                 "cliente": cliente_info if cliente_info else "Não especificado",
@@ -630,10 +461,59 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
             if relatorio_id:
                 st.success("✅ Relatório salvo no banco de dados com sucesso!")
             
-            return relatorio1_text + relatorio2_text + relatorio3_text + relatorio4_text + relatorio5_text + relatorio6_text
+            return relatorio_completo
         
     except Exception as e:
-        return f"Erro ao gerar relatório: {str(e)}"
+        return {
+            "partes": [{"titulo": "Erro", "conteudo": f"Erro ao gerar relatório: {str(e)}"}],
+            "texto_completo": f"Erro ao gerar relatório: {str(e)}"
+        }
+
+# Na interface do usuário, na parte do relatório (tab4):
+with tab4:
+    st.subheader("Relatório Avançado com IA")
+    
+    if st.button("Gerar Relatório com Análise Avançada"):
+        relatorio = gerar_relatorio_llm(
+            df_filtrado, 
+            metricas, 
+            metricas_relatorio, 
+            tipo_relatorio, 
+            cliente_info,
+            st.session_state.dados_anterior if st.session_state.dados_anterior is not None else None
+        )
+        
+        # Exibe cada parte do relatório em seções expansíveis
+        for parte in relatorio["partes"]:
+            with st.expander(f"**{parte['titulo']}**"):
+                st.markdown(parte["conteudo"])
+        
+        # Botão para download
+        st.download_button(
+            label="⬇️ Baixar Relatório Completo",
+            data=relatorio["texto_completo"],
+            file_name=f"relatorio_{tipo_relatorio}_campanhas.md",
+            mime="text/markdown"
+        )
+        
+        # Mostra histórico de relatórios salvos para este cliente (se houver ID)
+        if cliente_info.get('id'):
+            st.subheader("Histórico de Relatórios")
+            relatorios_anteriores = list(collection.find({
+                "cliente.id": cliente_info['id'],
+                "status": "ativo"
+            }).sort("data_geracao", -1).limit(5))
+            
+            if relatorios_anteriores:
+                for rel in relatorios_anteriores:
+                    with st.expander(f"Relatório de {rel['data_geracao'].strftime('%d/%m/%Y %H:%M')}"):
+                        for parte in rel.get('partes', []):
+                            st.markdown(f"**{parte['titulo']}**")
+                            st.markdown(parte['conteudo'][:200] + "...")
+            else:
+                st.info("Nenhum relatório anterior encontrado para este cliente")
+    else:
+        st.info("Clique no botão acima para gerar um relatório avançado com análise de IA")
         
        
 
