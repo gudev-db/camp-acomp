@@ -351,6 +351,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     - Relações causa-efeito
                     - Padrões de desempenho
                     - Anomalias e outliers
+                    - EX: Se métrica X subiu e métrica Y abaixou, isso significa que...
                     
                     Dados: {dados_para_llm}
         
