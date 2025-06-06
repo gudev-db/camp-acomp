@@ -16,6 +16,94 @@ st.set_page_config(
     page_icon="📊"
 )
 
+rel_metrica = '''
+###BEGIN RELACAO METRICA VS TIPO DE CAMPANHA###
+            📌 Search (Pesquisa)
+            CTR (Taxa de Cliques) - Principal indicador de relevância do anúncio
+            
+            Conversões - Objetivo final das campanhas de busca
+            
+            CPC médio (Custo por Clique) - Custo da aquisição de tráfego
+            
+            Custo por conversão - Eficiência no ROI
+            
+            IS parte superior pesquisa (Impression Share) - Visibilidade nos melhores posicionamentos
+            
+            Taxa de conversão - Eficácia da landing page
+            
+            🎯 Performance Max (Pmax)
+            Conversões - Métrica principal deste tipo de campanha
+            
+            Custo por conversão - Eficiência de custo
+            
+            CTR - Engajamento com os anúncios
+            
+            Impressões - Alcance da campanha
+            
+            Taxa de conversão - Eficácia do funnel
+            
+            📢 Display
+            Impressões - Alcance da campanha
+            
+            CPM médio (Custo por Mil Impressões) - Custo da exposição
+            
+            CTR - Engajamento com os banners
+            
+            Conversões (se for o objetivo)
+            
+            Visualizações (para creatives interativos)
+            
+            📹 Video
+            Visualizações (Views) - Pessoas que assistiram o vídeo
+            
+            CPV médio (Custo por Visualização) - Custo da atenção
+            
+            Engajamentos - Interações com o vídeo
+            
+            Taxa de interação - % de quem interagiu
+            
+            Conversões (se for campanha de conversão)
+            
+            🔍 Discovery
+            CTR - Relevância dos anúncios
+            
+            Conversões - Resultados concretos
+            
+            CPC médio - Custo da descoberta
+            
+            Impressões - Alcance orgânico+paid
+            
+            Taxa de conversão - Eficácia pós-clique
+            
+            🏷️ Alcance (Reach)
+            Impressões - Quantas vezes foi exibido
+            
+            CPM médio - Custo do alcance
+            
+            Frequência (calculada: Impressões/Únicos) - Número médio de visualizações por usuário
+            
+            Engajamentos - Interações com o conteúdo
+            
+            📊 Métricas Universais Importantes
+            (Relevantes para todos os tipos)
+            
+            Custo - Investimento total
+            
+            Orçamento vs Custo - Comparação planejado vs realizado
+            
+            Pontuação de otimização - Saúde geral da campanha
+            
+            Status da campanha - Campanhas ativas/pausadas
+            
+            📉 Métricas de Qualidade
+            IS parte superior pesquisa (para Search) - Posicionamento premium
+            
+            IS 1ª posição pesquisa (para Search) - Liderança nos resultados
+            
+            Taxa de interação (para Video/Display) - Engajamento qualificado
+            ###END RELACAO METRICA VS CAMPANHA###
+'''
+
 # Título principal
 st.title("📊 Analytics Avançado de Campanhas Digitais")
 
@@ -222,18 +310,17 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
         
         # Prompt específico baseado no tipo de relatório selecionado
         if tipo_relatorio == "técnico":
-            prompt = f"""
+            prompt_1 = f"""
             Você é um analista de marketing digital senior. Analise os dados de campanhas e gere um relatório TÉCNICO detalhado em português com:
             
             1. Introdução com visão geral
-            2. Análise de cada métrica selecionada
-            3. Comparativo mensal detalhado (quando houver dados do mês anterior)
-            4. Insights sobre correlações entre métricas e variações
-            5. Recomendações técnicas específicas baseadas nas tendências
-            6. Conclusão com resumo executivo
+
             
             Dados:
             {dados_para_llm}
+
+            Relação métrica vs tipo de campanha:
+            {rel_metrica}
             
             Destaque especialmente:
             - Relações entre métricas que evoluíram em direções opostas
@@ -244,210 +331,293 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
             
             
             Formate o relatório em markdown com títulos e subtítulos. Seja detalhado e técnico.
+            """
 
-            ###BEGIN RELACAO METRICA VS TIPO DE CAMPANHA###
-            📌 Search (Pesquisa)
-            CTR (Taxa de Cliques) - Principal indicador de relevância do anúncio
+            prompt_2 = f"""
+            Você é um analista de marketing digital senior. Analise os dados de campanhas e gere um relatório TÉCNICO detalhado em português com:
             
-            Conversões - Objetivo final das campanhas de busca
+            2. Análise de cada métrica selecionada
+
             
-            CPC médio (Custo por Clique) - Custo da aquisição de tráfego
+            Dados:
+            {dados_para_llm}
+
+            Relação métrica vs tipo de campanha:
+            {rel_metrica}
             
-            Custo por conversão - Eficiência no ROI
+            Destaque especialmente:
+            - Relações entre métricas que evoluíram em direções opostas
+            - Padrões interessantes nas variações percentuais
+            - Correlações entre mudanças em métricas de desempenho e de custo
+            - Correlações entre mudanças das métricas de uma forma que você consiga tirar insights profundos sobre a performance das campanhas e detectar pontos de melhoria
+            - Leve em consideração o tipo das campanhas (que podem ser identificadas em seus nomes) para avaliar as métricas chave
             
-            IS parte superior pesquisa (Impression Share) - Visibilidade nos melhores posicionamentos
             
-            Taxa de conversão - Eficácia da landing page
+            Formate o relatório em markdown com títulos e subtítulos. Seja detalhado e técnico.
+            """
+
+            prompt_3 = f"""
+            Você é um analista de marketing digital senior. Analise os dados de campanhas e gere um relatório TÉCNICO detalhado em português com:
             
-            🎯 Performance Max (Pmax)
-            Conversões - Métrica principal deste tipo de campanha
+
+            3. Comparativo mensal detalhado (quando houver dados do mês anterior)
+
             
-            Custo por conversão - Eficiência de custo
+            Dados:
+            {dados_para_llm}
+
+            Relação métrica vs tipo de campanha:
+            {rel_metrica}
             
-            CTR - Engajamento com os anúncios
+            Destaque especialmente:
+            - Relações entre métricas que evoluíram em direções opostas
+            - Padrões interessantes nas variações percentuais
+            - Correlações entre mudanças em métricas de desempenho e de custo
+            - Correlações entre mudanças das métricas de uma forma que você consiga tirar insights profundos sobre a performance das campanhas e detectar pontos de melhoria
+            - Leve em consideração o tipo das campanhas (que podem ser identificadas em seus nomes) para avaliar as métricas chave
             
-            Impressões - Alcance da campanha
             
-            Taxa de conversão - Eficácia do funnel
+            Formate o relatório em markdown com títulos e subtítulos. Seja detalhado e técnico.
+            """
+
+            prompt_4 = f"""
+            Você é um analista de marketing digital senior. Analise os dados de campanhas e gere um relatório TÉCNICO detalhado em português com:
             
-            📢 Display
-            Impressões - Alcance da campanha
+
+            4. Insights sobre correlações entre métricas e variações
+
             
-            CPM médio (Custo por Mil Impressões) - Custo da exposição
+            Dados:
+            {dados_para_llm}
+
+            Relação métrica vs tipo de campanha:
+            {rel_metrica}
             
-            CTR - Engajamento com os banners
+            Destaque especialmente:
+            - Relações entre métricas que evoluíram em direções opostas
+            - Padrões interessantes nas variações percentuais
+            - Correlações entre mudanças em métricas de desempenho e de custo
+            - Correlações entre mudanças das métricas de uma forma que você consiga tirar insights profundos sobre a performance das campanhas e detectar pontos de melhoria
+            - Leve em consideração o tipo das campanhas (que podem ser identificadas em seus nomes) para avaliar as métricas chave
             
-            Conversões (se for o objetivo)
             
-            Visualizações (para creatives interativos)
+            Formate o relatório em markdown com títulos e subtítulos. Seja detalhado e técnico.
+            """
+
+            prompt_5 = f"""
+            Você é um analista de marketing digital senior. Analise os dados de campanhas e gere um relatório TÉCNICO detalhado em português com:
             
-            📹 Video
-            Visualizações (Views) - Pessoas que assistiram o vídeo
+
+            5. Recomendações técnicas específicas baseadas nas tendências
             
-            CPV médio (Custo por Visualização) - Custo da atenção
+            Dados:
+            {dados_para_llm}
+
+            Relação métrica vs tipo de campanha:
+            {rel_metrica}
             
-            Engajamentos - Interações com o vídeo
+            Destaque especialmente:
+            - Relações entre métricas que evoluíram em direções opostas
+            - Padrões interessantes nas variações percentuais
+            - Correlações entre mudanças em métricas de desempenho e de custo
+            - Correlações entre mudanças das métricas de uma forma que você consiga tirar insights profundos sobre a performance das campanhas e detectar pontos de melhoria
+            - Leve em consideração o tipo das campanhas (que podem ser identificadas em seus nomes) para avaliar as métricas chave
             
-            Taxa de interação - % de quem interagiu
             
-            Conversões (se for campanha de conversão)
+            Formate o relatório em markdown com títulos e subtítulos. Seja detalhado e técnico.
+            """
+
+            prompt_6 = f"""
+            Você é um analista de marketing digital senior. Analise os dados de campanhas e gere um relatório TÉCNICO detalhado em português com:
             
-            🔍 Discovery
-            CTR - Relevância dos anúncios
+
+            6. Conclusão com resumo executivo
             
-            Conversões - Resultados concretos
+            Dados:
+            {dados_para_llm}
+
+            Relação métrica vs tipo de campanha:
+            {rel_metrica}
             
-            CPC médio - Custo da descoberta
+            Destaque especialmente:
+            - Relações entre métricas que evoluíram em direções opostas
+            - Padrões interessantes nas variações percentuais
+            - Correlações entre mudanças em métricas de desempenho e de custo
+            - Correlações entre mudanças das métricas de uma forma que você consiga tirar insights profundos sobre a performance das campanhas e detectar pontos de melhoria
+            - Leve em consideração o tipo das campanhas (que podem ser identificadas em seus nomes) para avaliar as métricas chave
             
-            Impressões - Alcance orgânico+paid
             
-            Taxa de conversão - Eficácia pós-clique
-            
-            🏷️ Alcance (Reach)
-            Impressões - Quantas vezes foi exibido
-            
-            CPM médio - Custo do alcance
-            
-            Frequência (calculada: Impressões/Únicos) - Número médio de visualizações por usuário
-            
-            Engajamentos - Interações com o conteúdo
-            
-            📊 Métricas Universais Importantes
-            (Relevantes para todos os tipos)
-            
-            Custo - Investimento total
-            
-            Orçamento vs Custo - Comparação planejado vs realizado
-            
-            Pontuação de otimização - Saúde geral da campanha
-            
-            Status da campanha - Campanhas ativas/pausadas
-            
-            📉 Métricas de Qualidade
-            IS parte superior pesquisa (para Search) - Posicionamento premium
-            
-            IS 1ª posição pesquisa (para Search) - Liderança nos resultados
-            
-            Taxa de interação (para Video/Display) - Engajamento qualificado
-            ###END RELACAO METRICA VS CAMPANHA###
+            Formate o relatório em markdown com títulos e subtítulos. Seja detalhado e técnico.
             """
         else:
-            prompt = f"""
+            prompt_1 = f"""
             Você é um estrategista de marketing. Crie um relatório GERENCIAL em português com:
             
             1. Visão geral simplificada
+
+            
+            Dados:
+            {dados_para_llm}
+
+            Relação métrica vs tipo de campanha:
+            {rel_metrica}
+            
+            Enfatize:
+            - Relações entre métricas que evoluíram em direções opostas
+            - Padrões interessantes nas variações percentuais
+            - Correlações entre mudanças em métricas de desempenho e de custo
+            - Correlações entre mudanças das métricas de uma forma que você consiga tirar insights profundos sobre a performance das campanhas e detectar pontos de melhoria
+            - Leve em consideração o tipo das campanhas (que podem ser identificadas em seus nomes) para avaliar as métricas chave
+            
+            
+            
+            Formate o relatório em markdown. Use linguagem acessível para não-especialistas."""
+
+            prompt_2 = f"""
+            Você é um estrategista de marketing. Crie um relatório GERENCIAL em português com:
+            
             2. Principais destaques e preocupações (especialmente comparações mensais)
+
+            
+            Dados:
+            {dados_para_llm}
+
+            Relação métrica vs tipo de campanha:
+            {rel_metrica}
+            
+            Enfatize:
+            - Relações entre métricas que evoluíram em direções opostas
+            - Padrões interessantes nas variações percentuais
+            - Correlações entre mudanças em métricas de desempenho e de custo
+            - Correlações entre mudanças das métricas de uma forma que você consiga tirar insights profundos sobre a performance das campanhas e detectar pontos de melhoria
+            - Leve em consideração o tipo das campanhas (que podem ser identificadas em seus nomes) para avaliar as métricas chave
+            
+            
+            
+            Formate o relatório em markdown. Use linguagem acessível para não-especialistas."""
+
+            prompt_3 = f"""
+            Você é um estrategista de marketing. Crie um relatório GERENCIAL em português com:
+            
+
             3. Análise estratégica do desempenho com foco em tendências
+
+            
+            Dados:
+            {dados_para_llm}
+
+            Relação métrica vs tipo de campanha:
+            {rel_metrica}
+            
+            Enfatize:
+            - Relações entre métricas que evoluíram em direções opostas
+            - Padrões interessantes nas variações percentuais
+            - Correlações entre mudanças em métricas de desempenho e de custo
+            - Correlações entre mudanças das métricas de uma forma que você consiga tirar insights profundos sobre a performance das campanhas e detectar pontos de melhoria
+            - Leve em consideração o tipo das campanhas (que podem ser identificadas em seus nomes) para avaliar as métricas chave
+            
+            
+            
+            Formate o relatório em markdown. Use linguagem acessível para não-especialistas."""
+
+            prompt_4 = f"""
+            Você é um estrategista de marketing. Crie um relatório GERENCIAL em português com:
+            
+
             4. Relações entre métricas que impactam os resultados
+
+            
+            Dados:
+            {dados_para_llm}
+
+            Relação métrica vs tipo de campanha:
+            {rel_metrica}
+            
+            Enfatize:
+            - Relações entre métricas que evoluíram em direções opostas
+            - Padrões interessantes nas variações percentuais
+            - Correlações entre mudanças em métricas de desempenho e de custo
+            - Correlações entre mudanças das métricas de uma forma que você consiga tirar insights profundos sobre a performance das campanhas e detectar pontos de melhoria
+            - Leve em consideração o tipo das campanhas (que podem ser identificadas em seus nomes) para avaliar as métricas chave
+            
+            
+            
+            Formate o relatório em markdown. Use linguagem acessível para não-especialistas."""
+
+            prompt_5 = f"""
+            Você é um estrategista de marketing. Crie um relatório GERENCIAL em português com:
+            
+
             5. Recomendações de alto nível baseadas nas variações observadas
+
+            
+            Dados:
+            {dados_para_llm}
+
+            Relação métrica vs tipo de campanha:
+            {rel_metrica}
+            
+            Enfatize:
+            - Relações entre métricas que evoluíram em direções opostas
+            - Padrões interessantes nas variações percentuais
+            - Correlações entre mudanças em métricas de desempenho e de custo
+            - Correlações entre mudanças das métricas de uma forma que você consiga tirar insights profundos sobre a performance das campanhas e detectar pontos de melhoria
+            - Leve em consideração o tipo das campanhas (que podem ser identificadas em seus nomes) para avaliar as métricas chave
+            
+            
+            
+            Formate o relatório em markdown. Use linguagem acessível para não-especialistas."""
+
+            prompt_6 = f"""
+            Você é um estrategista de marketing. Crie um relatório GERENCIAL em português com:
+            
+
             6. Próximos passos sugeridos
             
             Dados:
             {dados_para_llm}
+
+            Relação métrica vs tipo de campanha:
+            {rel_metrica}
             
             Enfatize:
-            - O que melhorou/piorou em relação ao mês anterior
-            - Relações entre métricas que explicam os resultados
-            - Impacto estratégico das variações observadas
+            - Relações entre métricas que evoluíram em direções opostas
+            - Padrões interessantes nas variações percentuais
+            - Correlações entre mudanças em métricas de desempenho e de custo
+            - Correlações entre mudanças das métricas de uma forma que você consiga tirar insights profundos sobre a performance das campanhas e detectar pontos de melhoria
+            - Leve em consideração o tipo das campanhas (que podem ser identificadas em seus nomes) para avaliar as métricas chave
             
-            Formate o relatório em markdown. Use linguagem acessível para não-especialistas.
+            
+            
+            Formate o relatório em markdown. Use linguagem acessível para não-especialistas."""
 
-            ###BEGIN RELACAO METRICA VS TIPO DE CAMPANHA###
-            📌 Search (Pesquisa)
-            CTR (Taxa de Cliques) - Principal indicador de relevância do anúncio
-            
-            Conversões - Objetivo final das campanhas de busca
-            
-            CPC médio (Custo por Clique) - Custo da aquisição de tráfego
-            
-            Custo por conversão - Eficiência no ROI
-            
-            IS parte superior pesquisa (Impression Share) - Visibilidade nos melhores posicionamentos
-            
-            Taxa de conversão - Eficácia da landing page
-            
-            🎯 Performance Max (Pmax)
-            Conversões - Métrica principal deste tipo de campanha
-            
-            Custo por conversão - Eficiência de custo
-            
-            CTR - Engajamento com os anúncios
-            
-            Impressões - Alcance da campanha
-            
-            Taxa de conversão - Eficácia do funnel
-            
-            📢 Display
-            Impressões - Alcance da campanha
-            
-            CPM médio (Custo por Mil Impressões) - Custo da exposição
-            
-            CTR - Engajamento com os banners
-            
-            Conversões (se for o objetivo)
-            
-            Visualizações (para creatives interativos)
-            
-            📹 Video
-            Visualizações (Views) - Pessoas que assistiram o vídeo
-            
-            CPV médio (Custo por Visualização) - Custo da atenção
-            
-            Engajamentos - Interações com o vídeo
-            
-            Taxa de interação - % de quem interagiu
-            
-            Conversões (se for campanha de conversão)
-            
-            🔍 Discovery
-            CTR - Relevância dos anúncios
-            
-            Conversões - Resultados concretos
-            
-            CPC médio - Custo da descoberta
-            
-            Impressões - Alcance orgânico+paid
-            
-            Taxa de conversão - Eficácia pós-clique
-            
-            🏷️ Alcance (Reach)
-            Impressões - Quantas vezes foi exibido
-            
-            CPM médio - Custo do alcance
-            
-            Frequência (calculada: Impressões/Únicos) - Número médio de visualizações por usuário
-            
-            Engajamentos - Interações com o conteúdo
-            
-            📊 Métricas Universais Importantes
-            (Relevantes para todos os tipos)
-            
-            Custo - Investimento total
-            
-            Orçamento vs Custo - Comparação planejado vs realizado
-            
-            Pontuação de otimização - Saúde geral da campanha
-            
-            Status da campanha - Campanhas ativas/pausadas
-            
-            📉 Métricas de Qualidade
-            IS parte superior pesquisa (para Search) - Posicionamento premium
-            
-            IS 1ª posição pesquisa (para Search) - Liderança nos resultados
-            
-            Taxa de interação (para Video/Display) - Engajamento qualificado
-            ###END RELACAO METRICA VS CAMPANHA###
-            """
+           
         
         # Gera o conteúdo com o Gemini
         with st.spinner("🧠 Gerando relatório avançado com IA..."):
-            response = model.generate_content(prompt)
-            relatorio_text = response.text
+            response_1 = model.generate_content(prompt_1)
+            response_2 = model.generate_content(prompt_2)
+            response_3 = model.generate_content(prompt_3)
+            response_4 = model.generate_content(prompt_4)
+            response_5 = model.generate_content(prompt_5)
+            response_6 = model.generate_content(prompt_6)
+
+            relatorio1_text = response_1.text
+            relatorio2_text = response_2.text
+            relatorio3_text = response_3.text
+            relatorio4_text = response_4.text
+            relatorio5_text = response_5.text
+            relatorio6_text = response_6.text
             
             # Prepara os dados para salvar no MongoDB
             relatorio_data = {
                 "tipo": tipo_relatorio,
-                "conteudo": relatorio_text,
+                "conteudo1": relatorio1_text,
+                "conteudo2": relatorio2_text,
+                "conteudo3": relatorio3_text,
+                "conteudo4": relatorio4_text,
+                "conteudo5": relatorio5_text,
+                "conteudo6": relatorio6_text,
                 "metricas_analisadas": colunas_selecionadas,
                 "data_geracao": datetime.now(),
                 "cliente": cliente_info if cliente_info else "Não especificado",
@@ -460,7 +630,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
             if relatorio_id:
                 st.success("✅ Relatório salvo no banco de dados com sucesso!")
             
-            return relatorio_text
+            return relatorio1_text + relatorio2_text + relatorio3_text + relatorio4_text + relatorio5_text + relatorio6_text
         
     except Exception as e:
         return f"Erro ao gerar relatório: {str(e)}"
@@ -697,7 +867,12 @@ if st.session_state.dados_atual is not None:
                 st.session_state.dados_anterior if st.session_state.dados_anterior is not None else None
             )
                         
-            st.markdown(relatorio)
+            st.markdown(relatorio_1)
+            st.markdown(relatorio_2)
+            st.markdown(relatorio_3)
+            st.markdown(relatorio_4)
+            st.markdown(relatorio_5)
+            st.markdown(relatorio_6)
             
             st.download_button(
                 label="⬇️ Baixar Relatório Completo",
