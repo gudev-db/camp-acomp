@@ -33,6 +33,28 @@ if not gemini_api_key:
 
 # Funções do aplicativo ==============================================
 
+# No início do código, adicione uma função para detectar o tipo de campanha pelo nome
+def detectar_tipo_campanha(nome_campanha):
+    nome = nome_campanha.lower()
+    if 'search' in nome:
+        return 'Search'
+    elif 'alcance' in nome or 'reach' in nome:
+        return 'Alcance'
+    elif 'conversao' in nome or 'conversão' in nome or 'conversion' in nome:
+        return 'Conversão'
+    elif 'display' in nome:
+        return 'Display'
+    elif 'video' in nome or 'vídeo' in nome:
+        return 'Video'
+    elif 'discovery' in nome:
+        return 'Discovery'
+    elif 'pmax' in nome or 'performance max' in nome:
+        return 'Performance Max'
+    else:
+        return 'Outros'
+
+
+
 def carregar_dados(arquivo):
     """Carrega e prepara o arquivo CSV"""
     try:
@@ -343,8 +365,22 @@ if st.session_state.dados_atual is not None:
         
         # Filtros
         st.subheader("Filtros")
+        
+        # Adiciona coluna de tipo detectado ao dataframe
+        if st.session_state.dados_atual is not None:
+            df = st.session_state.dados_atual.copy()
+            df['Tipo Detectado'] = df['Campanha'].apply(detectar_tipo_campanha)
+            
+            # Filtro por tipo detectado
+            tipos_detectados = sorted(df['Tipo Detectado'].unique())
+            tipos_selecionados = st.multiselect(
+                "Tipo de Campanha (detectado pelo nome)",
+                options=tipos_detectados,
+                default=tipos_detectados
+            )
+        
         tipo_campanha = st.multiselect(
-            "Tipo de Campanha",
+            "Tipo de Campanha (do relatório)",
             options=df['Tipo de campanha'].unique(),
             default=df['Tipo de campanha'].unique()
         )
@@ -357,8 +393,9 @@ if st.session_state.dados_atual is not None:
         
         mostrar_boxplots = st.checkbox("Mostrar boxplots das métricas")
     
-    # Aplica filtros
+    # Modifica a aplicação dos filtros para incluir o tipo detectado
     df_filtrado = df[
+        (df['Tipo Detectado'].isin(tipos_selecionados) &
         (df['Tipo de campanha'].isin(tipo_campanha)) &
         (df['Status da campanha'].isin(status_campanha))
     ]
