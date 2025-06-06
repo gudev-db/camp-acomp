@@ -322,8 +322,10 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                 prompts = [
                     ("1. Introdução com visão geral", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
-                    
-                    Você é um analista de marketing digital senior. Gere a introdução de um relatório TÉCNICO detalhado em português com:
+                    ###BEGIN SYSTEM PROMPT###
+                    Você é um analista de marketing digital senior. Gere a introdução de um relatório TÉCNICO detalhado em português. 
+                    Você está aqui para contextualizar o usuário com um panorama geral sobre a performance das campanhas:
+                    ###END SYSTEM PROMPT###
                     - Visão geral do desempenho das campanhas
                     - Contexto sobre os dados analisados
                     - Destaque inicial dos pontos mais relevantes
@@ -333,6 +335,9 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     """),
                     ("2. Análise de cada métrica selecionada", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
+                    ###BEGIN SYSTEM PROMPT###
+                    Você é um analista de marketing digital senior. Você está aqui para fazer uma análise das métricas das campanhas
+                    ###END SYSTEM PROMPT###
                     Faça uma análise técnica detalhada de cada métrica selecionada, incluindo:
                     - Significado de cada métrica
                     - Performance em relação aos benchmarks do setor
@@ -343,6 +348,10 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     """),
                     ("3. Comparativo mensal detalhado", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
+                    ###BEGIN SYSTEM PROMPT###
+                    Você é um analista de marketing digital senior. Gere a introdução de um relatório TÉCNICO detalhado em português. 
+                    Você está aqui para fazer um comparativo mensal detalhado e minucioso entre as métricas das campanhas.
+                    ###END SYSTEM PROMPT###
                     Analise comparativamente os dados com o mês anterior (quando disponível):
                     - Variações percentuais significativas
                     - Tendências identificadas
@@ -352,6 +361,11 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     """),
                     ("4. Insights sobre correlações", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
+                    ###BEGIN SYSTEM PROMPT###
+                    Você é um analista de marketing digital senior. Gere a introdução de um relatório TÉCNICO detalhado em português. 
+                    Você está aqui para identificar e pontuar e analisar correlações entre as variações mensais entre métricas,
+                    identificando relações causa efeito, padrões de desempenho, anomalias, pontos de atenção, insights, insights não inicialmente óbvios:
+                    ###END SYSTEM PROMPT###
                     Identifique correlações importantes entre as métricas:
                     - Relações causa-efeito
                     - Padrões de desempenho
@@ -416,6 +430,11 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     """),
                     ("4. Relações entre métricas", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
+                    ###BEGIN SYSTEM PROMPT###
+                    Você é um analista de marketing digital senior. Gere a introdução de um relatório GERENCIAL detalhado em português. 
+                    Você está aqui para identificar e pontuar e analisar correlações entre as variações mensais entre métricas,
+                    identificando relações causa efeito, padrões de desempenho, anomalias, pontos de atenção, insights, insights não inicialmente óbvios:
+                    ###END SYSTEM PROMPT###
                     Explique como as métricas se relacionam e impactam os resultados:
                     - Conexões importantes
                     - Trade-offs identificados
