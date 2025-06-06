@@ -279,9 +279,9 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
         
         # Top e bottom performers
         dados_para_llm += "\n## Melhores Campanhas - Mês Atual:\n"
-        for col in colunas_selecionadas[:3]:  # Limita a 3 métricas para não ficar muito longo
+        for col in colunas_selecionadas[:10]:  # Limita a 3 métricas para não ficar muito longo
             if col in df.columns:
-                top3 = df.nlargest(3, col)[['Campanha', col]]
+                top3 = df.nlargest(10, col)[['Campanha', col]]
                 dados_para_llm += f"- {col}:\n"
                 for _, row in top3.iterrows():
                     dados_para_llm += f"  - {row['Campanha']}: {row[col]:.2f}\n"
@@ -346,7 +346,6 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     Analise comparativamente os dados com o mês anterior (quando disponível):
                     - Variações percentuais significativas
                     - Tendências identificadas
-                    - Possíveis causas para as variações
                     
                     Dados: {dados_para_llm}
 
@@ -421,6 +420,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     - Conexões importantes
                     - Trade-offs identificados
                     - Sinergias encontradas
+                    - Relações causa-efeito
                     - Tire insights sobre os trade offs entre as variações das métricas. Relacione-as e tire conclusões sobre o que está acontecendo.
                     
                     Dados: {dados_para_llm}
