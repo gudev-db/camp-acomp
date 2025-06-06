@@ -321,72 +321,81 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
             if tipo_relatorio == "técnico":
                 prompts = [
                     ("1. Introdução com visão geral", f"""
+                    - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
+                    
                     Você é um analista de marketing digital senior. Gere a introdução de um relatório TÉCNICO detalhado em português com:
                     - Visão geral do desempenho das campanhas
                     - Contexto sobre os dados analisados
                     - Destaque inicial dos pontos mais relevantes
                     
                     Dados: {dados_para_llm}
-                    Relação métrica vs tipo de campanha: {rel_metrica}
+                    
                     """),
                     ("2. Análise de cada métrica selecionada", f"""
+                    - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
                     Faça uma análise técnica detalhada de cada métrica selecionada, incluindo:
                     - Significado de cada métrica
                     - Performance em relação aos benchmarks do setor
                     - Relação com o tipo de campanha
                     
                     Dados: {dados_para_llm}
-                    Relação métrica vs tipo de campanha: {rel_metrica}
+ 
                     """),
                     ("3. Comparativo mensal detalhado", f"""
+                    - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
                     Analise comparativamente os dados com o mês anterior (quando disponível):
                     - Variações percentuais significativas
                     - Tendências identificadas
                     - Possíveis causas para as variações
                     
                     Dados: {dados_para_llm}
-                    Relação métrica vs tipo de campanha: {rel_metrica}
+
                     """),
                     ("4. Insights sobre correlações", f"""
+                    - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
                     Identifique correlações importantes entre as métricas:
                     - Relações causa-efeito
                     - Padrões de desempenho
                     - Anomalias e outliers
                     
                     Dados: {dados_para_llm}
-                    Relação métrica vs tipo de campanha: {rel_metrica}
+        
                     """),
                     ("5. Recomendações técnicas", f"""
+                    - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
                     Gere recomendações técnicas específicas baseadas na análise:
                     - Ajustes em campanhas
                     - Otimizações sugeridas
                     - Alertas sobre problemas identificados
                     
                     Dados: {dados_para_llm}
-                    Relação métrica vs tipo de campanha: {rel_metrica}
+ 
                     """),
                     ("6. Conclusão com resumo executivo", f"""
+                    - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
                     Conclua com um resumo executivo técnico:
                     - Principais achados
                     - Recomendações prioritárias
                     - Próximos passos sugeridos
                     
                     Dados: {dados_para_llm}
-                    Relação métrica vs tipo de campanha: {rel_metrica}
+
                     """)
                 ]
             else:
                 prompts = [
                     ("1. Visão geral simplificada", f"""
+                    - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
                     Você é um estrategista de marketing. Gere uma visão geral simplificada em português com:
                     - Principais resultados
                     - Destaques e preocupações
                     - Contexto estratégico
                     
                     Dados: {dados_para_llm}
-                    Relação métrica vs tipo de campanha: {rel_metrica}
+        
                     """),
                     ("2. Principais destaques e preocupações", f"""
+                    - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
                     Destaque os pontos mais relevantes e preocupações:
                     - Comparações mensais
                     - Variações significativas
@@ -394,43 +403,47 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     - Alinhamento com objetivos dado o tipo de campanha
                     
                     Dados: {dados_para_llm}
-                    Relação métrica vs tipo de campanha: {rel_metrica}
+
                     """),
                     ("3. Análise estratégica do desempenho", f"""
+                    - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
                     Analise o desempenho com foco em tendências:
                     - Padrões de longo prazo
                     - Eficácia estratégica
                     - Alinhamento com objetivos dado o tipo de campanha
                     
                     Dados: {dados_para_llm}
-                    Relação métrica vs tipo de campanha: {rel_metrica}
+
                     """),
                     ("4. Relações entre métricas", f"""
+                    - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
                     Explique como as métricas se relacionam e impactam os resultados:
                     - Conexões importantes
                     - Trade-offs identificados
                     - Sinergias encontradas
                     
                     Dados: {dados_para_llm}
-                    Relação métrica vs tipo de campanha: {rel_metrica}
+
                     """),
                     ("5. Recomendações de alto nível", f"""
+                    - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
                     Gere recomendações estratégicas:
                     - Direcionamentos gerais
                     - Priorizações sugeridas
                     - Ajustes recomendados
                     
                     Dados: {dados_para_llm}
-                    Relação métrica vs tipo de campanha: {rel_metrica}
+
                     """),
                     ("6. Próximos passos sugeridos", f"""
+                    - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
                     Defina os próximos passos estratégicos:
                     - Ações imediatas
                     - Monitoramentos necessários
                     - Planejamento futuro
                     
                     Dados: {dados_para_llm}
-                    Relação métrica vs tipo de campanha: {rel_metrica}
+
                     """)
                 ]
             
