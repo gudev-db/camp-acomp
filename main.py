@@ -395,7 +395,7 @@ if st.session_state.dados_atual is not None:
     
     # Modifica a aplicação dos filtros para incluir o tipo detectado
     df_filtrado = df[
-        (df['Tipo Detectado'].isin(tipos_selecionados) &
+        (df['Tipo Detectado'].isin(tipos_selecionados)) &
         (df['Tipo de campanha'].isin(tipo_campanha)) &
         (df['Status da campanha'].isin(status_campanha))
     ]
