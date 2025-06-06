@@ -421,6 +421,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     - Conexões importantes
                     - Trade-offs identificados
                     - Sinergias encontradas
+                    - Tire insights sobre os trade offs entre as variações das métricas. Relacione-as e tire conclusões sobre o que está acontecendo.
                     
                     Dados: {dados_para_llm}
 
