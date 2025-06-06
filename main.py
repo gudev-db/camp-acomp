@@ -268,7 +268,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
         
         # Top e bottom performers
         dados_para_llm += "\n## Melhores Campanhas - Mês Atual:\n"
-        for col in colunas_selecionadas[:10]:  # Limita a 3 métricas para não ficar muito longo
+        for col in colunas_selecionadas[:10]:  # Limita a 10 métricas para não ficar muito longo
             if col in df.columns:
                 top3 = df.nlargest(10, col)[['Campanha', col]]
                 dados_para_llm += f"- {col}:\n"
@@ -302,7 +302,8 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
             # Dicionário para armazenar todas as partes do relatório
             relatorio_completo = {
                 "partes": [],
-                "texto_completo": ""
+                "texto_completo": "",
+                "contexto_acumulado": ""  # Armazena todo o contexto gerado até o momento
             }
             
             # Gera cada parte do relatório
@@ -317,7 +318,6 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     - Destaque inicial dos pontos mais relevantes
                     
                     Dados: {dados_para_llm}
-                    
                     """),
                     ("2. Análise de cada métrica selecionada", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
@@ -326,9 +326,10 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     - Significado de cada métrica
                     - Performance em relação aos benchmarks do setor
                     - Relação com o tipo de campanha
+                    - Considere o contexto já gerado na parte 1
                     
+                    Contexto anterior: {relatorio_completo['contexto_acumulado']}
                     Dados: {dados_para_llm}
- 
                     """),
                     ("3. Comparativo mensal detalhado", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
@@ -336,9 +337,10 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     Analise comparativamente os dados com o mês anterior (quando disponível):
                     - Variações percentuais significativas
                     - Tendências identificadas
+                    - Considere o contexto já gerado nas partes 1 e 2
                     
+                    Contexto anterior: {relatorio_completo['contexto_acumulado']}
                     Dados: {dados_para_llm}
-
                     """),
                     ("4. Insights sobre correlações", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
@@ -347,9 +349,10 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     - Relações causa-efeito
                     - Padrões de desempenho
                     - Anomalias e outliers
+                    - Considere o contexto já gerado nas partes 1, 2 e 3
                     
+                    Contexto anterior: {relatorio_completo['contexto_acumulado']}
                     Dados: {dados_para_llm}
-        
                     """),
                     ("5. Recomendações técnicas", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
@@ -357,9 +360,10 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     - Ajustes em campanhas
                     - Otimizações sugeridas
                     - Alertas sobre problemas identificados
+                    - Considere todo o contexto gerado anteriormente
                     
+                    Contexto anterior: {relatorio_completo['contexto_acumulado']}
                     Dados: {dados_para_llm}
- 
                     """),
                     ("6. Conclusão com resumo executivo", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
@@ -367,9 +371,10 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     - Principais achados
                     - Recomendações prioritárias
                     - Próximos passos sugeridos
+                    - Consolide todas as partes anteriores
                     
+                    Contexto anterior: {relatorio_completo['contexto_acumulado']}
                     Dados: {dados_para_llm}
-
                     """)
                 ]
             else:
@@ -382,7 +387,6 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     - Contexto estratégico
                     
                     Dados: {dados_para_llm}
-        
                     """),
                     ("2. Principais destaques e preocupações", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
@@ -391,9 +395,10 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     - Variações significativas
                     - Impacto estratégico dado o tipo de campanha
                     - Alinhamento com objetivos dado o tipo de campanha
+                    - Considere o contexto já gerado na parte 1
                     
+                    Contexto anterior: {relatorio_completo['contexto_acumulado']}
                     Dados: {dados_para_llm}
-
                     """),
                     ("3. Análise estratégica do desempenho", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
@@ -401,22 +406,22 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     - Padrões de longo prazo
                     - Eficácia estratégica
                     - Alinhamento com objetivos dado o tipo de campanha
+                    - Considere o contexto já gerado nas partes 1 e 2
                     
+                    Contexto anterior: {relatorio_completo['contexto_acumulado']}
                     Dados: {dados_para_llm}
-
                     """),
                     ("4. Relações entre métricas", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
-
                     Explique como as métricas se relacionam e impactam os resultados:
                     - Conexões importantes
                     - Trade-offs identificados
                     - Sinergias encontradas
                     - Relações causa-efeito
-                    - Tire insights sobre os trade offs entre as variações das métricas. Relacione-as e tire conclusões sobre o que está acontecendo.
+                    - Considere o contexto já gerado nas partes 1, 2 e 3
                     
+                    Contexto anterior: {relatorio_completo['contexto_acumulado']}
                     Dados: {dados_para_llm}
-
                     """),
                     ("5. Recomendações de alto nível", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
@@ -424,9 +429,10 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     - Direcionamentos gerais
                     - Priorizações sugeridas
                     - Ajustes recomendados
+                    - Considere todo o contexto gerado anteriormente
                     
+                    Contexto anterior: {relatorio_completo['contexto_acumulado']}
                     Dados: {dados_para_llm}
-
                     """),
                     ("6. Próximos passos sugeridos", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
@@ -434,22 +440,29 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     - Ações imediatas
                     - Monitoramentos necessários
                     - Planejamento futuro
+                    - Consolide todas as partes anteriores
                     
+                    Contexto anterior: {relatorio_completo['contexto_acumulado']}
                     Dados: {dados_para_llm}
-
                     """)
                 ]
             
             # Gera cada parte do relatório
             for titulo, prompt in prompts:
                 with st.spinner(f"Gerando {titulo.lower()}..."):
-                    response = model.generate_content(prompt)
+                    # Atualiza o prompt com o contexto acumulado
+                    prompt_completo = f"{prompt}\n\nContexto acumulado:\n{relatorio_completo['contexto_acumulado']}"
+                    
+                    response = model.generate_content(prompt_completo)
                     parte_relatorio = {
                         "titulo": titulo,
                         "conteudo": response.text
                     }
+                    
+                    # Atualiza o relatório completo
                     relatorio_completo["partes"].append(parte_relatorio)
                     relatorio_completo["texto_completo"] += f"\n\n## {titulo}\n\n{response.text}"
+                    relatorio_completo["contexto_acumulado"] += f"\n\n## {titulo}\n\n{response.text}"
             
             # Prepara os dados para salvar no MongoDB
             relatorio_data = {
@@ -471,10 +484,9 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
             return relatorio_completo
         
     except Exception as e:
-        return {
-            "partes": [{"titulo": "Erro", "conteudo": f"Erro ao gerar relatório: {str(e)}"}],
-            "texto_completo": f"Erro ao gerar relatório: {str(e)}"
-        }
+        return f"Erro ao gerar relatório: {str(e)}"
+        
+
 
 
         
