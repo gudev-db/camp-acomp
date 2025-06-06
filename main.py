@@ -469,51 +469,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
             "texto_completo": f"Erro ao gerar relatório: {str(e)}"
         }
 
-# Na interface do usuário, na parte do relatório (tab4):
-with tab4:
-    st.subheader("Relatório Avançado com IA")
-    
-    if st.button("Gerar Relatório com Análise Avançada"):
-        relatorio = gerar_relatorio_llm(
-            df_filtrado, 
-            metricas, 
-            metricas_relatorio, 
-            tipo_relatorio, 
-            cliente_info,
-            st.session_state.dados_anterior if st.session_state.dados_anterior is not None else None
-        )
-        
-        # Exibe cada parte do relatório em seções expansíveis
-        for parte in relatorio["partes"]:
-            with st.expander(f"**{parte['titulo']}**"):
-                st.markdown(parte["conteudo"])
-        
-        # Botão para download
-        st.download_button(
-            label="⬇️ Baixar Relatório Completo",
-            data=relatorio["texto_completo"],
-            file_name=f"relatorio_{tipo_relatorio}_campanhas.md",
-            mime="text/markdown"
-        )
-        
-        # Mostra histórico de relatórios salvos para este cliente (se houver ID)
-        if cliente_info.get('id'):
-            st.subheader("Histórico de Relatórios")
-            relatorios_anteriores = list(collection.find({
-                "cliente.id": cliente_info['id'],
-                "status": "ativo"
-            }).sort("data_geracao", -1).limit(5))
-            
-            if relatorios_anteriores:
-                for rel in relatorios_anteriores:
-                    with st.expander(f"Relatório de {rel['data_geracao'].strftime('%d/%m/%Y %H:%M')}"):
-                        for parte in rel.get('partes', []):
-                            st.markdown(f"**{parte['titulo']}**")
-                            st.markdown(parte['conteudo'][:200] + "...")
-            else:
-                st.info("Nenhum relatório anterior encontrado para este cliente")
-    else:
-        st.info("Clique no botão acima para gerar um relatório avançado com análise de IA")
+
         
        
 
@@ -734,6 +690,7 @@ if st.session_state.dados_atual is not None:
         else:
             st.info("ℹ️ Carregue os dados do mês anterior para habilitar a comparação mensal")
     
+    # Na interface do usuário, na parte do relatório (tab4):
     with tab4:
         st.subheader("Relatório Avançado com IA")
         
@@ -746,17 +703,16 @@ if st.session_state.dados_atual is not None:
                 cliente_info,
                 st.session_state.dados_anterior if st.session_state.dados_anterior is not None else None
             )
-                        
-            st.markdown(relatorio_1)
-            st.markdown(relatorio_2)
-            st.markdown(relatorio_3)
-            st.markdown(relatorio_4)
-            st.markdown(relatorio_5)
-            st.markdown(relatorio_6)
             
+            # Exibe cada parte do relatório em seções expansíveis
+            for parte in relatorio["partes"]:
+                with st.expander(f"**{parte['titulo']}**"):
+                    st.markdown(parte["conteudo"])
+            
+            # Botão para download
             st.download_button(
                 label="⬇️ Baixar Relatório Completo",
-                data=relatorio,
+                data=relatorio["texto_completo"],
                 file_name=f"relatorio_{tipo_relatorio}_campanhas.md",
                 mime="text/markdown"
             )
@@ -772,9 +728,9 @@ if st.session_state.dados_atual is not None:
                 if relatorios_anteriores:
                     for rel in relatorios_anteriores:
                         with st.expander(f"Relatório de {rel['data_geracao'].strftime('%d/%m/%Y %H:%M')}"):
-                            st.markdown(rel['conteudo'][:500] + "...")  # Mostra apenas um preview
-                            if st.button("Ver completo", key=f"ver_{rel['_id']}"):
-                                st.markdown(rel['conteudo'])
+                            for parte in rel.get('partes', []):
+                                st.markdown(f"**{parte['titulo']}**")
+                                st.markdown(parte['conteudo'][:200] + "...")
                 else:
                     st.info("Nenhum relatório anterior encontrado para este cliente")
         else:
