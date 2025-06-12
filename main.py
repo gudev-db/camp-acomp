@@ -9,7 +9,7 @@ from datetime import datetime
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 import hashlib
-from streamlit_login_auth_ui.widgets import __login__
+import time
 
 # Configuração da página
 st.set_page_config(
@@ -581,6 +581,7 @@ def mostrar_tela_login():
                     st.session_state["usuario"] = usuario
                     st.session_state["autenticado"] = True
                     st.success("Login bem-sucedido! Redirecionando...")
+                    time.sleep(1)
                     st.experimental_rerun()
                 else:
                     st.error(mensagem)
