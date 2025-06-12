@@ -582,7 +582,7 @@ def mostrar_tela_login():
                     st.session_state["autenticado"] = True
                     st.success("Login bem-sucedido! Redirecionando...")
                     time.sleep(1)
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error(mensagem)
     
@@ -616,7 +616,7 @@ def mostrar_app_principal():
         if st.button("🚪 Sair"):
             del st.session_state["usuario"]
             del st.session_state["autenticado"]
-            st.experimental_rerun()
+            st.rerun()
     
     # Título principal
     st.title("📊 Analytics Avançado de Campanhas Digitais")
@@ -905,7 +905,7 @@ def mostrar_app_principal():
                             {"$set": {"status": "excluido"}}
                         )
                         st.success("Relatório marcado como excluído")
-                        st.experimental_rerun()
+                        st.rerun()
         else:
             st.info("Você ainda não gerou nenhum relatório. Use a aba de análise para criar seu primeiro relatório.")
 
