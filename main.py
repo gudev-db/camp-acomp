@@ -8,6 +8,8 @@ import seaborn as sns
 from datetime import datetime
 from pymongo import MongoClient
 from bson.objectid import ObjectId
+import hashlib
+from streamlit_login_auth_ui.widgets import __login__
 
 # Configuração da página
 st.set_page_config(
@@ -93,15 +95,14 @@ rel_metrica = '''
 ###END RELACAO METRICA VS CAMPANHA###
 '''
 
-# Título principal
-st.title("📊 Analytics Avançado de Campanhas Digitais")
-
 # Conexão com MongoDB
 client = MongoClient("mongodb+srv://gustavoromao3345:RqWFPNOJQfInAW1N@cluster0.5iilj.mongodb.net/auto_doc?retryWrites=true&w=majority&ssl=true&ssl_cert_reqs=CERT_NONE&tlsAllowInvalidCertificates=true")
 db = client['arquivos_planejamento']
 collection = db['auto_doc']
 banco = client["arquivos_planejamento"]
 db_clientes = banco["clientes"]  # info clientes
+db_usuarios = banco["usuarios"]  # coleção para usuários
+db_relatorios = banco["relatorios"]  # coleção específica para relatórios
 
 # Verifica se a API key do Gemini está configurada
 gemini_api_key = os.getenv("GEMINI_API_KEY")
@@ -110,7 +111,53 @@ if not gemini_api_key:
 
 # Funções do aplicativo ==============================================
 
-# No início do código, adicione uma função para detectar o tipo de campanha pelo nome
+def criar_usuario(email, senha, nome):
+    """Cria um novo usuário no banco de dados"""
+    # Verifica se o usuário já existe
+    if db_usuarios.find_one({"email": email}):
+        return False, "Usuário já existe"
+    
+    # Cria hash da senha
+    senha_hash = hashlib.sha256(senha.encode()).hexdigest()
+    
+    # Insere o novo usuário
+    novo_usuario = {
+        "email": email,
+        "senha": senha_hash,
+        "nome": nome,
+        "data_criacao": datetime.now(),
+        "ultimo_login": None,
+        "ativo": True
+    }
+    
+    try:
+        db_usuarios.insert_one(novo_usuario)
+        return True, "Usuário criado com sucesso"
+    except Exception as e:
+        return False, f"Erro ao criar usuário: {str(e)}"
+
+def verificar_login(email, senha):
+    """Verifica as credenciais do usuário"""
+    usuario = db_usuarios.find_one({"email": email})
+    
+    if not usuario:
+        return False, None, "Usuário não encontrado"
+    
+    if not usuario.get("ativo", True):
+        return False, None, "Usuário desativado"
+    
+    senha_hash = hashlib.sha256(senha.encode()).hexdigest()
+    
+    if usuario["senha"] == senha_hash:
+        # Atualiza último login
+        db_usuarios.update_one(
+            {"_id": usuario["_id"]},
+            {"$set": {"ultimo_login": datetime.now()}}
+        )
+        return True, usuario, "Login bem-sucedido"
+    else:
+        return False, None, "Senha incorreta"
+
 def detectar_tipo_campanha(nome_campanha):
     nome = nome_campanha.lower()
     if 'search' in nome:
@@ -129,8 +176,6 @@ def detectar_tipo_campanha(nome_campanha):
         return 'Performance Max'
     else:
         return 'Outros'
-
-
 
 def carregar_dados(arquivo):
     """Carrega e prepara o arquivo CSV"""
@@ -226,16 +271,41 @@ def criar_grafico_comparativo(dados_atual, dados_anterior, metrica):
         st.error(f"Erro ao criar gráfico comparativo: {str(e)}")
         return 0
 
-def salvar_relatorio_mongodb(relatorio_data):
+def salvar_relatorio_mongodb(relatorio_data, usuario_id=None):
     """Salva o relatório no MongoDB"""
     try:
-        result = collection.insert_one(relatorio_data)
+        if usuario_id:
+            relatorio_data["usuario_id"] = usuario_id
+        
+        result = db_relatorios.insert_one(relatorio_data)
         return str(result.inserted_id)
     except Exception as e:
         st.error(f"Erro ao salvar no MongoDB: {str(e)}")
         return None
 
-def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, cliente_info=None, df_anterior=None):
+def obter_relatorios_usuario(usuario_id, limite=10):
+    """Obtém os relatórios de um usuário específico"""
+    try:
+        relatorios = list(db_relatorios.find(
+            {"usuario_id": usuario_id},
+            {"titulo": 1, "data_geracao": 1, "tipo": 1, "cliente.nome": 1}
+        ).sort("data_geracao", -1).limit(limite))
+        
+        return relatorios
+    except Exception as e:
+        st.error(f"Erro ao buscar relatórios: {str(e)}")
+        return []
+
+def obter_relatorio_completo(relatorio_id):
+    """Obtém um relatório completo pelo ID"""
+    try:
+        relatorio = db_relatorios.find_one({"_id": ObjectId(relatorio_id)})
+        return relatorio
+    except Exception as e:
+        st.error(f"Erro ao buscar relatório: {str(e)}")
+        return None
+
+def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, cliente_info=None, df_anterior=None, usuario_id=None):
     """Gera um relatório analítico usando LLM e salva no MongoDB"""
     if not gemini_api_key:
         return "🔒 Relatório avançado desabilitado. Configure a API key do Gemini para ativar esta funcionalidade."
@@ -479,7 +549,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
             }
             
             # Salva no MongoDB
-            relatorio_id = salvar_relatorio_mongodb(relatorio_data)
+            relatorio_id = salvar_relatorio_mongodb(relatorio_data, usuario_id)
             if relatorio_id:
                 st.success("✅ Relatório salvo no banco de dados com sucesso!")
             
@@ -491,285 +561,361 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
             "texto_completo": f"Erro ao gerar relatório: {str(e)}"
         }
 
+# Sistema de Autenticação ============================================
 
-        
-       
-
-# Interface do usuário ===============================================
-
-# Sessão para armazenar os dados carregados
-if 'dados_atual' not in st.session_state:
-    st.session_state.dados_atual = None
-    st.session_state.dados_anterior = None
-
-# Seção de upload de arquivos e informações do cliente
-col1, col2 = st.columns(2)
-
-with col1:
-    st.subheader("📅 Mês Atual (Mais Recente)")
-    arquivo_atual = st.file_uploader(
-        "Carregue o relatório do mês atual",
-        type=["csv"],
-        key="uploader_atual"
-    )
-    if arquivo_atual:
-        df_atual = carregar_dados(arquivo_atual)
-        if df_atual is not None:
-            st.session_state.dados_atual = df_atual
-            st.success("✅ Dados do mês atual carregados com sucesso!")
-
-with col2:
-    st.subheader("🗓️ Mês Anterior")
-    arquivo_anterior = st.file_uploader(
-        "Carregue o relatório do mês anterior",
-        type=["csv"],
-        key="uploader_anterior"
-    )
-    if arquivo_anterior:
-        df_anterior = carregar_dados(arquivo_anterior)
-        if df_anterior is not None:
-            st.session_state.dados_anterior = df_anterior
-            st.success("✅ Dados do mês anterior carregados com sucesso!")
-
-# Seção de informações do cliente
-with st.expander("ℹ️ Informações do Cliente (Opcional)"):
-    cliente_nome = st.text_input("Nome do Cliente")
-    cliente_id = st.text_input("ID do Cliente (se aplicável)")
-    cliente_tags = st.text_input("Tags (separadas por vírgula)")
+def mostrar_tela_login():
+    """Mostra a tela de login/cadastro"""
+    st.title("🔐 Login / Cadastro")
     
-    cliente_info = {
-        "nome": cliente_nome,
-        "id": cliente_id,
-        "tags": [tag.strip() for tag in cliente_tags.split(",")] if cliente_tags else []
-    }
-
-# Verifica se temos dados para análise
-if st.session_state.dados_atual is not None:
-    df = st.session_state.dados_atual
-    metricas = calcular_metricas(df)
-    colunas_numericas = [col for col in metricas.keys()]
+    tab_login, tab_cadastro = st.tabs(["Login", "Cadastro"])
     
-    with st.sidebar:
-        st.header("🔧 Configurações de Análise")
-        
-        # Seleção de métricas
-        metricas_relatorio = st.multiselect(
-            "Selecione as métricas para análise",
-            options=colunas_numericas,
-            default=colunas_numericas[:5] if len(colunas_numericas) > 5 else colunas_numericas
-        )
-        
-        # Tipo de relatório
-        tipo_relatorio = st.radio(
-            "Tipo de relatório",
-            options=["técnico", "gerencial"],
-            index=0
-        )
-        
-        # Filtros
-        st.subheader("Filtros")
-        
-        # Adiciona coluna de tipo detectado ao dataframe
-        if st.session_state.dados_atual is not None:
-            df = st.session_state.dados_atual.copy()
-            df['Tipo Detectado'] = df['Campanha'].apply(detectar_tipo_campanha)
+    with tab_login:
+        with st.form("login_form"):
+            email = st.text_input("Email")
+            senha = st.text_input("Senha", type="password")
+            submit = st.form_submit_button("Entrar")
             
-            # Filtro por tipo detectado
-            tipos_detectados = sorted(df['Tipo Detectado'].unique())
-            tipos_selecionados = st.multiselect(
-                "Tipo de Campanha (detectado pelo nome)",
-                options=tipos_detectados,
-                default=tipos_detectados
-            )
-        
-        tipo_campanha = st.multiselect(
-            "Tipo de Campanha (do relatório)",
-            options=df['Tipo de campanha'].unique(),
-            default=df['Tipo de campanha'].unique()
-        )
-        
-        status_campanha = st.multiselect(
-            "Status da Campanha",
-            options=df['Status da campanha'].unique(),
-            default=df['Status da campanha'].unique()
-        )
-        
-        mostrar_boxplots = st.checkbox("Mostrar boxplots das métricas")
+            if submit:
+                sucesso, usuario, mensagem = verificar_login(email, senha)
+                if sucesso:
+                    st.session_state["usuario"] = usuario
+                    st.session_state["autenticado"] = True
+                    st.success("Login bem-sucedido! Redirecionando...")
+                    st.experimental_rerun()
+                else:
+                    st.error(mensagem)
     
-    # Modifica a aplicação dos filtros para incluir o tipo detectado
-    df_filtrado = df[
-        (df['Tipo Detectado'].isin(tipos_selecionados)) &
-        (df['Tipo de campanha'].isin(tipo_campanha)) &
-        (df['Status da campanha'].isin(status_campanha))
-    ]
+    with tab_cadastro:
+        with st.form("cadastro_form"):
+            nome = st.text_input("Nome Completo")
+            email_cadastro = st.text_input("Email")
+            senha_cadastro = st.text_input("Senha", type="password")
+            confirmar_senha = st.text_input("Confirmar Senha", type="password")
+            submit_cadastro = st.form_submit_button("Criar Conta")
+            
+            if submit_cadastro:
+                if senha_cadastro != confirmar_senha:
+                    st.error("As senhas não coincidem")
+                else:
+                    sucesso, mensagem = criar_usuario(email_cadastro, senha_cadastro, nome)
+                    if sucesso:
+                        st.success(mensagem)
+                    else:
+                        st.error(mensagem)
+
+def mostrar_app_principal():
+    """Mostra o aplicativo principal após o login"""
+    usuario = st.session_state.get("usuario", {})
+    
+    # Barra lateral com informações do usuário
+    with st.sidebar:
+        st.markdown(f"### 👤 {usuario.get('nome', 'Usuário')}")
+        st.markdown(f"✉️ {usuario.get('email', '')}")
+        
+        if st.button("🚪 Sair"):
+            del st.session_state["usuario"]
+            del st.session_state["autenticado"]
+            st.experimental_rerun()
+    
+    # Título principal
+    st.title("📊 Analytics Avançado de Campanhas Digitais")
+    
+    # Sessão para armazenar os dados carregados
+    if 'dados_atual' not in st.session_state:
+        st.session_state.dados_atual = None
+        st.session_state.dados_anterior = None
     
     # Abas principais
-    tab1, tab2, tab3, tab4 = st.tabs(["📋 Visão Geral", "📊 Análise por Métrica", "🔄 Comparativo Mensal", "🧠 Relatório Avançado"])
+    tab_analise, tab_relatorios = st.tabs(["📈 Análise de Campanhas", "🗂 Meus Relatórios"])
     
-    with tab1:
-        st.subheader("Visão Geral das Campanhas - Mês Atual")
+    with tab_analise:
+        # Seção de upload de arquivos e informações do cliente
+        col1, col2 = st.columns(2)
         
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Total de Campanhas", len(df_filtrado))
-        col2.metric("Campanhas Ativas", len(df_filtrado[df_filtrado['Status da campanha'] == 'Ativa']))
-        col3.metric("Campanhas Pausadas", len(df_filtrado[df_filtrado['Status da campanha'] == 'Pausada']))
+        with col1:
+            st.subheader("📅 Mês Atual (Mais Recente)")
+            arquivo_atual = st.file_uploader(
+                "Carregue o relatório do mês atual",
+                type=["csv"],
+                key="uploader_atual"
+            )
+            if arquivo_atual:
+                df_atual = carregar_dados(arquivo_atual)
+                if df_atual is not None:
+                    st.session_state.dados_atual = df_atual
+                    st.success("✅ Dados do mês atual carregados com sucesso!")
         
-        st.dataframe(df_filtrado, use_container_width=True)
-    
-    with tab2:
-        st.subheader("Análise Detalhada por Métrica - Mês Atual")
+        with col2:
+            st.subheader("🗓️ Mês Anterior")
+            arquivo_anterior = st.file_uploader(
+                "Carregue o relatório do mês anterior",
+                type=["csv"],
+                key="uploader_anterior"
+            )
+            if arquivo_anterior:
+                df_anterior = carregar_dados(arquivo_anterior)
+                if df_anterior is not None:
+                    st.session_state.dados_anterior = df_anterior
+                    st.success("✅ Dados do mês anterior carregados com sucesso!")
         
-        metrica_selecionada = st.selectbox(
-            "Selecione uma métrica para análise detalhada",
-            options=colunas_numericas
-        )
-        
-        if metrica_selecionada:
-            stats = metricas[metrica_selecionada]
+        # Seção de informações do cliente
+        with st.expander("ℹ️ Informações do Cliente (Opcional)"):
+            cliente_nome = st.text_input("Nome do Cliente")
+            cliente_id = st.text_input("ID do Cliente (se aplicável)")
+            cliente_tags = st.text_input("Tags (separadas por vírgula)")
             
-            col1, col2, col3, col4 = st.columns(4)
-            col1.metric("Média", f"{stats['média']:,.2f}")
-            col2.metric("Mediana", f"{stats['mediana']:,.2f}")
-            col3.metric("Mínimo", f"{stats['min']:,.2f}")
-            col4.metric("Máximo", f"{stats['max']:,.2f}")
-            
-            if mostrar_boxplots:
-                st.subheader("Distribuição dos Valores")
-                criar_boxplot(df_filtrado, metrica_selecionada)
-            
-            st.subheader("Campanhas acima da média")
-            top5 = df_filtrado.nlargest(5, metrica_selecionada)[['Campanha', metrica_selecionada]]
-            st.dataframe(top5.style.format({metrica_selecionada: "{:,.2f}"}))
-            
-            st.subheader("Campanhas abaixo da média")
-            bottom5 = df_filtrado.nsmallest(5, metrica_selecionada)[['Campanha', metrica_selecionada]]
-            st.dataframe(bottom5.style.format({metrica_selecionada: "{:,.2f}"}))
-    
-    with tab3:
-        st.subheader("Comparativo Mensal")
+            cliente_info = {
+                "nome": cliente_nome,
+                "id": cliente_id,
+                "tags": [tag.strip() for tag in cliente_tags.split(",")] if cliente_tags else []
+            }
         
-        if st.session_state.dados_anterior is not None:
-            # Aplica os mesmos filtros ao mês anterior
-            df_anterior_filtrado = st.session_state.dados_anterior[
-                (st.session_state.dados_anterior['Tipo de campanha'].isin(tipo_campanha)) &
-                (st.session_state.dados_anterior['Status da campanha'].isin(status_campanha))
+        # Verifica se temos dados para análise
+        if st.session_state.dados_atual is not None:
+            df = st.session_state.dados_atual
+            metricas = calcular_metricas(df)
+            colunas_numericas = [col for col in metricas.keys()]
+            
+            with st.sidebar:
+                st.header("🔧 Configurações de Análise")
+                
+                # Seleção de métricas
+                metricas_relatorio = st.multiselect(
+                    "Selecione as métricas para análise",
+                    options=colunas_numericas,
+                    default=colunas_numericas[:5] if len(colunas_numericas) > 5 else colunas_numericas
+                )
+                
+                # Tipo de relatório
+                tipo_relatorio = st.radio(
+                    "Tipo de relatório",
+                    options=["técnico", "gerencial"],
+                    index=0
+                )
+                
+                # Filtros
+                st.subheader("Filtros")
+                
+                # Adiciona coluna de tipo detectado ao dataframe
+                if st.session_state.dados_atual is not None:
+                    df = st.session_state.dados_atual.copy()
+                    df['Tipo Detectado'] = df['Campanha'].apply(detectar_tipo_campanha)
+                    
+                    # Filtro por tipo detectado
+                    tipos_detectados = sorted(df['Tipo Detectado'].unique())
+                    tipos_selecionados = st.multiselect(
+                        "Tipo de Campanha (detectado pelo nome)",
+                        options=tipos_detectados,
+                        default=tipos_detectados
+                    )
+                
+                tipo_campanha = st.multiselect(
+                    "Tipo de Campanha (do relatório)",
+                    options=df['Tipo de campanha'].unique(),
+                    default=df['Tipo de campanha'].unique()
+                )
+                
+                status_campanha = st.multiselect(
+                    "Status da Campanha",
+                    options=df['Status da campanha'].unique(),
+                    default=df['Status da campanha'].unique()
+                )
+                
+                mostrar_boxplots = st.checkbox("Mostrar boxplots das métricas")
+            
+            # Modifica a aplicação dos filtros para incluir o tipo detectado
+            df_filtrado = df[
+                (df['Tipo Detectado'].isin(tipos_selecionados)) &
+                (df['Tipo de campanha'].isin(tipo_campanha)) &
+                (df['Status da campanha'].isin(status_campanha))
             ]
             
-            metrica_comparacao = st.selectbox(
-                "Selecione uma métrica para comparação",
-                options=colunas_numericas,
-                key="comparacao_metrica"
-            )
+            # Sub-abas de análise
+            tab1, tab2, tab3, tab4 = st.tabs(["📋 Visão Geral", "📊 Análise por Métrica", "🔄 Comparativo Mensal", "🧠 Relatório Avançado"])
             
-            if metrica_comparacao:
-                variacao = criar_grafico_comparativo(df_filtrado, df_anterior_filtrado, metrica_comparacao)
+            with tab1:
+                st.subheader("Visão Geral das Campanhas - Mês Atual")
                 
-                # Tabela comparativa detalhada
-                st.subheader("Análise Detalhada da Comparação")
+                col1, col2, col3 = st.columns(3)
+                col1.metric("Total de Campanhas", len(df_filtrado))
+                col2.metric("Campanhas Ativas", len(df_filtrado[df_filtrado['Status da campanha'] == 'Ativa']))
+                col3.metric("Campanhas Pausadas", len(df_filtrado[df_filtrado['Status da campanha'] == 'Pausada']))
                 
-                # Calcula estatísticas para ambos os períodos
-                stats_atual = {
-                    'Média': df_filtrado[metrica_comparacao].mean(),
-                    'Mediana': df_filtrado[metrica_comparacao].median(),
-                    'Mínimo': df_filtrado[metrica_comparacao].min(),
-                    'Máximo': df_filtrado[metrica_comparacao].max(),
-                    'Desvio Padrão': df_filtrado[metrica_comparacao].std()
-                }
+                st.dataframe(df_filtrado, use_container_width=True)
+            
+            with tab2:
+                st.subheader("Análise Detalhada por Métrica - Mês Atual")
                 
-                stats_anterior = {
-                    'Média': df_anterior_filtrado[metrica_comparacao].mean(),
-                    'Mediana': df_anterior_filtrado[metrica_comparacao].median(),
-                    'Mínimo': df_anterior_filtrado[metrica_comparacao].min(),
-                    'Máximo': df_anterior_filtrado[metrica_comparacao].max(),
-                    'Desvio Padrão': df_anterior_filtrado[metrica_comparacao].std()
-                }
-                
-                # Cria DataFrame comparativo
-                df_comparativo = pd.DataFrame({
-                    'Mês Atual': stats_atual,
-                    'Mês Anterior': stats_anterior
-                }).T
-                
-                # Calcula variações
-                df_comparativo['Variação (%)'] = ((df_comparativo.loc['Mês Atual'] - df_comparativo.loc['Mês Anterior']) / 
-                                                df_comparativo.loc['Mês Anterior']) * 100
-                
-                # Formatação condicional para a variação
-                def color_variation(val):
-                    color = 'red' if val < 0 else 'green' if val > 0 else 'gray'
-                    return f'color: {color}'
-                
-                st.dataframe(
-                    df_comparativo.style.format({
-                        'Média': '{:,.2f}',
-                        'Mediana': '{:,.2f}',
-                        'Mínimo': '{:,.2f}',
-                        'Máximo': '{:,.2f}',
-                        'Desvio Padrão': '{:,.2f}',
-                        'Variação (%)': '{:,.1f}%'
-                    }).applymap(color_variation, subset=['Variação (%)'])
+                metrica_selecionada = st.selectbox(
+                    "Selecione uma métrica para análise detalhada",
+                    options=colunas_numericas
                 )
-        else:
-            st.info("ℹ️ Carregue os dados do mês anterior para habilitar a comparação mensal")
-    
-    # Na interface do usuário, na parte do relatório (tab4):
-    with tab4:
-        st.subheader("Relatório Avançado com IA")
-        
-        if st.button("Gerar Relatório com Análise Avançada"):
-            relatorio = gerar_relatorio_llm(
-                df_filtrado, 
-                metricas, 
-                metricas_relatorio, 
-                tipo_relatorio, 
-                cliente_info,
-                st.session_state.dados_anterior if st.session_state.dados_anterior is not None else None
-            )
-            
-            # Exibe cada parte do relatório em seções expansíveis
-            for parte in relatorio["partes"]:
-                with st.expander(f"**{parte['titulo']}**"):
-                    st.markdown(parte["conteudo"])
-            
-            # Botão para download
-            st.download_button(
-                label="⬇️ Baixar Relatório Completo",
-                data=relatorio["texto_completo"],
-                file_name=f"relatorio_{tipo_relatorio}_campanhas.md",
-                mime="text/markdown"
-            )
-            
-            # Mostra histórico de relatórios salvos para este cliente (se houver ID)
-            if cliente_info.get('id'):
-                st.subheader("Histórico de Relatórios")
-                relatorios_anteriores = list(collection.find({
-                    "cliente.id": cliente_info['id'],
-                    "status": "ativo"
-                }).sort("data_geracao", -1).limit(5))
                 
-                if relatorios_anteriores:
-                    for rel in relatorios_anteriores:
-                        with st.expander(f"Relatório de {rel['data_geracao'].strftime('%d/%m/%Y %H:%M')}"):
-                            for parte in rel.get('partes', []):
-                                st.markdown(f"**{parte['titulo']}**")
-                                st.markdown(parte['conteudo'][:200] + "...")
+                if metrica_selecionada:
+                    stats = metricas[metrica_selecionada]
+                    
+                    col1, col2, col3, col4 = st.columns(4)
+                    col1.metric("Média", f"{stats['média']:,.2f}")
+                    col2.metric("Mediana", f"{stats['mediana']:,.2f}")
+                    col3.metric("Mínimo", f"{stats['min']:,.2f}")
+                    col4.metric("Máximo", f"{stats['max']:,.2f}")
+                    
+                    if mostrar_boxplots:
+                        st.subheader("Distribuição dos Valores")
+                        criar_boxplot(df_filtrado, metrica_selecionada)
+                    
+                    st.subheader("Campanhas acima da média")
+                    top5 = df_filtrado.nlargest(5, metrica_selecionada)[['Campanha', metrica_selecionada]]
+                    st.dataframe(top5.style.format({metrica_selecionada: "{:,.2f}"}))
+                    
+                    st.subheader("Campanhas abaixo da média")
+                    bottom5 = df_filtrado.nsmallest(5, metrica_selecionada)[['Campanha', metrica_selecionada]]
+                    st.dataframe(bottom5.style.format({metrica_selecionada: "{:,.2f}"}))
+            
+            with tab3:
+                st.subheader("Comparativo Mensal")
+                
+                if st.session_state.dados_anterior is not None:
+                    # Aplica os mesmos filtros ao mês anterior
+                    df_anterior_filtrado = st.session_state.dados_anterior[
+                        (st.session_state.dados_anterior['Tipo de campanha'].isin(tipo_campanha)) &
+                        (st.session_state.dados_anterior['Status da campanha'].isin(status_campanha))
+                    ]
+                    
+                    metrica_comparacao = st.selectbox(
+                        "Selecione uma métrica para comparação",
+                        options=colunas_numericas,
+                        key="comparacao_metrica"
+                    )
+                    
+                    if metrica_comparacao:
+                        variacao = criar_grafico_comparativo(df_filtrado, df_anterior_filtrado, metrica_comparacao)
+                        
+                        # Tabela comparativa detalhada
+                        st.subheader("Análise Detalhada da Comparação")
+                        
+                        # Calcula estatísticas para ambos os períodos
+                        stats_atual = {
+                            'Média': df_filtrado[metrica_comparacao].mean(),
+                            'Mediana': df_filtrado[metrica_comparacao].median(),
+                            'Mínimo': df_filtrado[metrica_comparacao].min(),
+                            'Máximo': df_filtrado[metrica_comparacao].max(),
+                            'Desvio Padrão': df_filtrado[metrica_comparacao].std()
+                        }
+                        
+                        stats_anterior = {
+                            'Média': df_anterior_filtrado[metrica_comparacao].mean(),
+                            'Mediana': df_anterior_filtrado[metrica_comparacao].median(),
+                            'Mínimo': df_anterior_filtrado[metrica_comparacao].min(),
+                            'Máximo': df_anterior_filtrado[metrica_comparacao].max(),
+                            'Desvio Padrão': df_anterior_filtrado[metrica_comparacao].std()
+                        }
+                        
+                        # Cria DataFrame comparativo
+                        df_comparativo = pd.DataFrame({
+                            'Mês Atual': stats_atual,
+                            'Mês Anterior': stats_anterior
+                        }).T
+                        
+                        # Calcula variações
+                        df_comparativo['Variação (%)'] = ((df_comparativo.loc['Mês Atual'] - df_comparativo.loc['Mês Anterior']) / 
+                                                        df_comparativo.loc['Mês Anterior']) * 100
+                        
+                        # Formatação condicional para a variação
+                        def color_variation(val):
+                            color = 'red' if val < 0 else 'green' if val > 0 else 'gray'
+                            return f'color: {color}'
+                        
+                        st.dataframe(
+                            df_comparativo.style.format({
+                                'Média': '{:,.2f}',
+                                'Mediana': '{:,.2f}',
+                                'Mínimo': '{:,.2f}',
+                                'Máximo': '{:,.2f}',
+                                'Desvio Padrão': '{:,.2f}',
+                                'Variação (%)': '{:,.1f}%'
+                            }).applymap(color_variation, subset=['Variação (%)'])
+                        )
                 else:
-                    st.info("Nenhum relatório anterior encontrado para este cliente")
+                    st.info("ℹ️ Carregue os dados do mês anterior para habilitar a comparação mensal")
+            
+            with tab4:
+                st.subheader("Relatório Avançado com IA")
+                
+                if st.button("Gerar Relatório com Análise Avançada"):
+                    relatorio = gerar_relatorio_llm(
+                        df_filtrado, 
+                        metricas, 
+                        metricas_relatorio, 
+                        tipo_relatorio, 
+                        cliente_info,
+                        st.session_state.dados_anterior if st.session_state.dados_anterior is not None else None,
+                        usuario.get("_id")
+                    )
+                    
+                    # Exibe cada parte do relatório em seções expansíveis
+                    for parte in relatorio["partes"]:
+                        with st.expander(f"**{parte['titulo']}**"):
+                            st.markdown(parte["conteudo"])
+                    
+                    # Botão para download
+                    st.download_button(
+                        label="⬇️ Baixar Relatório Completo",
+                        data=relatorio["texto_completo"],
+                        file_name=f"relatorio_{tipo_relatorio}_campanhas.md",
+                        mime="text/markdown"
+                    )
         else:
-            st.info("Clique no botão acima para gerar um relatório avançado com análise de IA")
+            st.info("ℹ️ Por favor, carregue pelo menos o relatório do mês atual para começar a análise")
+    
+    with tab_relatorios:
+        st.subheader("Meus Relatórios Gerados")
+        
+        # Obtém os relatórios do usuário
+        relatorios = obter_relatorios_usuario(usuario.get("_id"))
+        
+        if relatorios:
+            st.write(f"📚 Você tem {len(relatorios)} relatórios salvos:")
+            
+            for rel in relatorios:
+                with st.expander(f"📄 {rel.get('cliente', {}).get('nome', 'Sem nome')} - {rel.get('tipo', 'Sem tipo')} - {rel['data_geracao'].strftime('%d/%m/%Y %H:%M')}"):
+                    # Botão para visualizar o relatório completo
+                    if st.button("🔍 Ver Relatório Completo", key=f"ver_{rel['_id']}"):
+                        relatorio_completo = obter_relatorio_completo(rel["_id"])
+                        if relatorio_completo:
+                            for parte in relatorio_completo.get("partes", []):
+                                st.markdown(f"### {parte['titulo']}")
+                                st.markdown(parte['conteudo'])
+                    
+                    # Botão para download
+                    texto_completo = "\n\n".join([f"## {p['titulo']}\n\n{p['conteudo']}" for p in rel.get("partes", [])])
+                    st.download_button(
+                        label="⬇️ Baixar Relatório",
+                        data=texto_completo,
+                        file_name=f"relatorio_{rel.get('tipo', 'geral')}_{rel['data_geracao'].strftime('%Y%m%d')}.md",
+                        mime="text/markdown",
+                        key=f"download_{rel['_id']}"
+                    )
+                    
+                    # Botão para excluir
+                    if st.button("🗑️ Excluir", key=f"excluir_{rel['_id']}"):
+                        db_relatorios.update_one(
+                            {"_id": rel["_id"]},
+                            {"$set": {"status": "excluido"}}
+                        )
+                        st.success("Relatório marcado como excluído")
+                        st.experimental_rerun()
+        else:
+            st.info("Você ainda não gerou nenhum relatório. Use a aba de análise para criar seu primeiro relatório.")
 
-else:
-    st.info("ℹ️ Por favor, carregue pelo menos o relatório do mês atual para começar a análise")
+# Ponto de entrada do aplicativo =====================================
 
-# Instruções para configurar a API
-if not gemini_api_key:
-    st.markdown("""
-    ## 🔑 Configuração da API Gemini
-    Para habilitar o relatório avançado com IA:
-    1. Obtenha uma API key do Google Gemini
-    2. Configure como variável de ambiente:
-       ```bash
-       export GEMINI_API_KEY='sua_chave_aqui'
-       ```
-    3. Reinicie o aplicativo
-    """)
+def main():
+    """Função principal que controla o fluxo do aplicativo"""
+    if not st.session_state.get("autenticado", False):
+        mostrar_tela_login()
+    else:
+        mostrar_app_principal()
+
+if __name__ == "__main__":
+    main()
