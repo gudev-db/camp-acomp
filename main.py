@@ -194,13 +194,20 @@ def carregar_dados(arquivo):
             'Visualizações', 'Tipo de estratégia de lances', 'Taxa de conversão'
         ]
         
-        for col in df.columns:
-            if df[col].dtype == 'object':
-                df[col] = df[col].astype(str).str.replace(',', '').str.replace('%', '').str.replace(' ', '')
-                try:
-                    df[col] = pd.to_numeric(df[col], errors='ignore')
-                except:
-                    pass
+        # Converter colunas numéricas
+        colunas_numericas = [
+            'CPV médio', 'Interações', 'Taxa de interação', 'Custo', 'Impressões',
+            'Cliques', 'Conversões', 'CTR', 'CPM médio', 'CPC médio', 
+            'Custo por conversão', 'Custo médio', 'Engajamentos',
+            'IS parte superior pesquisa', 'IS 1ª posição pesquisa', 'Visualizações',
+            'Taxa de conversão'
+        ]
+        
+        for col in colunas_numericas:
+            if col in df.columns:
+                # Remove caracteres não numéricos e converte
+                df[col] = df[col].astype(str).str.replace(',', '.').str.replace('%', '').str.replace(' ', '')
+                df[col] = pd.to_numeric(df[col], errors='coerce')
         
         return df
     except Exception as e:
