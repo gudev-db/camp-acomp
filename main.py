@@ -190,24 +190,44 @@ def detectar_tipo_campanha(nome_campanha):
 def carregar_dados(arquivo):
     """Carrega e prepara o arquivo CSV"""
     try:
-        df = pd.read_csv(arquivo, skiprows=2)
+        # Lê o arquivo CSV com encoding apropriado
+        df = pd.read_csv(arquivo, skiprows=2, encoding='utf-8')
         df = df.dropna(how='all')
         
-        # Verifica se a coluna 'Campanha' existe
-        if 'Campanha' not in df.columns:
-            st.error("O arquivo CSV não contém uma coluna 'Campanha'")
-            return None
-            
+        # Mapeamento de colunas com problemas de encoding para nomes consistentes
+        mapeamento_colunas = {
+            'Status da campanha': 'Status da campanha',
+            'Campanha': 'Campanha',
+            'Nome do orÃ§amento': 'Nome do orçamento',
+            'CÃ³digo da moeda': 'Código da moeda',
+            'OrÃ§amento': 'Orçamento',
+            'Tipo de orÃ§amento': 'Tipo de orçamento',
+            'Status': 'Status',
+            'Motivos do status': 'Motivos do status',
+            'PontuaÃ§Ã£o de otimizaÃ§Ã£o': 'Pontuação de otimização',
+            'Tipo de campanha': 'Tipo de campanha',
+            'CPV mÃ©dio': 'CPV médio',
+            'InteraÃ§Ãµes': 'Interações',
+            'Taxa de interaÃ§Ã£o': 'Taxa de interação',
+            'Custo': 'Custo',
+            'Impr.': 'Impressões',
+            'Cliques': 'Cliques',
+            'ConversÃµes': 'Conversões',
+            'CTR': 'CTR',
+            'CPM mÃ©dio': 'CPM médio',
+            'CPC mÃ©d.': 'CPC médio',
+            'Custo / conv.': 'Custo por conversão',
+            'Custo mÃ©dio': 'Custo médio',
+            'Engajamentos': 'Engajamentos',
+            'IS parte sup. pesq.': 'IS parte superior pesquisa',
+            'IS 1Âª posiÃ§Ã£o pesq.': 'IS 1ª posição pesquisa',
+            'VisualizaÃ§Ãµes': 'Visualizações',
+            'Tipo de estratÃ©gia de lances': 'Tipo de estratégia de lances',
+            'Taxa de conv.': 'Taxa de conversão'
+        }
+        
         # Renomear colunas para nomes consistentes
-        df.columns = [
-            'Status da campanha', 'Campanha', 'Nome do orçamento', 'Código da moeda', 
-            'Orçamento', 'Tipo de orçamento', 'Status', 'Motivos do status', 
-            'Pontuação de otimização',  'CPV médio', 'Interações', 
-            'Taxa de interação', 'Custo', 'Impressões', 'Cliques', 'Conversões', 
-            'CTR', 'CPM médio', 'CPC médio', 'Tipo de Campanha', 'Custo por conversão', 'Custo médio', 
-            'Engajamentos', 'IS parte superior pesquisa', 'IS 1ª posição pesquisa', 
-            'Visualizações', 'Tipo de estratégia de lances', 'Taxa de conversão'
-        ]
+        df = df.rename(columns=mapeamento_colunas)
         
         # Converter colunas numéricas
         colunas_numericas = [
