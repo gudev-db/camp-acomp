@@ -202,7 +202,7 @@ def carregar_dados(arquivo):
         df.columns = [
             'Status da campanha', 'Campanha', 'Nome do orçamento', 'Código da moeda', 
             'Orçamento', 'Tipo de orçamento', 'Status', 'Motivos do status', 
-            'Pontuação de otimização', 'Tipo de campanha', 'CPV médio', 'Interações', 
+            'Pontuação de otimização',  'CPV médio', 'Interações', 
             'Taxa de interação', 'Custo', 'Impressões', 'Cliques', 'Conversões', 
             'CTR', 'CPM médio', 'CPC médio', 'Custo por conversão', 'Custo médio', 
             'Engajamentos', 'IS parte superior pesquisa', 'IS 1ª posição pesquisa', 
