@@ -752,7 +752,7 @@ def mostrar_app_principal():
                 st.header("🔧 Configurações de Análise")
                 
                 # Filtro por etapa do funil
-                etapas_disponiveis = sorted(df['Etapa Funil'].unique())
+                etapas_disponiveis = sorted(df['Etapa Funil'].unique()) if 'Etapa Funil' in df.columns else []
                 etapas_funil = st.multiselect(
                     "Etapa do Funil",
                     options=etapas_disponiveis,
@@ -778,7 +778,7 @@ def mostrar_app_principal():
                 st.subheader("Filtros Adicionais")
                 
                 # Filtro por tipo detectado
-                tipos_detectados = sorted(df['Tipo Detectado'].unique())
+                tipos_detectados = sorted(df['Tipo Detectado'].unique()) if 'Tipo Detectado' in df.columns else []
                 tipos_selecionados = st.multiselect(
                     "Tipo de Campanha (detectado pelo nome)",
                     options=tipos_detectados,
@@ -786,15 +786,20 @@ def mostrar_app_principal():
                 )
                 
                 # Filtro por tipo de campanha
-                tipos_campanha = sorted(df['Tipo de campanha'].unique())
+                if 'Tipo de campanha' in df.columns:
+                    tipos_campanha = sorted([str(t) for t in df['Tipo de campanha'].unique() if pd.notna(t)])
+                else:
+                    tipos_campanha = []
+                    st.warning("A coluna 'Tipo de campanha' não foi encontrada no arquivo carregado")
+                
                 tipo_campanha = st.multiselect(
                     "Tipo de Campanha (do relatório)",
                     options=tipos_campanha,
-                    default=tipos_campanha
+                    default=tipos_campanha if tipos_campanha else None
                 )
                 
                 # Filtro por status da campanha
-                status_disponiveis = sorted(df['Status da campanha'].unique())
+                status_disponiveis = sorted(df['Status da campanha'].unique()) if 'Status da campanha' in df.columns else []
                 status_campanha = st.multiselect(
                     "Status da Campanha",
                     options=status_disponiveis,
