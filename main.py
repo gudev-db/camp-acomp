@@ -178,31 +178,75 @@ def detectar_tipo_campanha(nome_campanha):
         return 'Outros'
 
 def carregar_dados(arquivo):
-    """Carrega e prepara o arquivo CSV"""
+    """Carrega e prepara o arquivo CSV com os nomes de colunas específicos"""
     try:
+        # Carrega o arquivo mantendo os nomes originais das colunas
         df = pd.read_csv(arquivo, skiprows=2)
         df = df.dropna(how='all')
         
-        # Renomear colunas para nomes consistentes
-        df.columns = [
-            'Status da campanha', 'Campanha', 'Nome do orçamento', 'Código da moeda', 
-            'Orçamento', 'Tipo de orçamento', 'Status', 'Motivos do status', 
-            'Pontuação de otimização', 'Tipo de campanha', 'CPV médio', 'Interações', 
-            'Taxa de interação', 'Custo', 'Impressões', 'Cliques', 'Conversões', 
-            'CTR', 'CPM médio', 'CPC médio', 'Custo por conversão', 'Custo médio', 
-            'Engajamentos', 'IS parte superior pesquisa', 'IS 1ª posição pesquisa', 
-            'Visualizações', 'Tipo de estratégia de lances', 'Taxa de conversão'
+        # Mapeamento dos nomes originais para nomes padronizados
+        mapeamento_colunas = {
+            'Status da campanha': 'Status da campanha',
+            'Campanha': 'Campanha',
+            'Nome do orÃ§amento': 'Nome do orçamento',
+            'CÃ³digo da moeda': 'Código da moeda',
+            'OrÃ§amento': 'Orçamento',
+            'Tipo de orÃ§amento': 'Tipo de orçamento',
+            'Status': 'Status',
+            'Motivos do status': 'Motivos do status',
+            'PontuaÃ§Ã£o de otimizaÃ§Ã£o': 'Pontuação de otimização',
+            'Tipo de campanha': 'Tipo de campanha',
+            'CPV mÃ©dio': 'CPV médio',
+            'InteraÃ§Ãµes': 'Interações',
+            'Taxa de interaÃ§Ã£o': 'Taxa de interação',
+            'Custo': 'Custo',
+            'Impr.': 'Impressões',
+            'Cliques': 'Cliques',
+            'ConversÃµes': 'Conversões',
+            'CTR': 'CTR',
+            'CPM mÃ©dio': 'CPM médio',
+            'CPC mÃ©d.': 'CPC médio',
+            'Custo / conv.': 'Custo por conversão',
+            'Custo mÃ©dio': 'Custo médio',
+            'Engajamentos': 'Engajamentos',
+            'IS parte sup. pesq.': 'IS parte superior pesquisa',
+            'IS 1Âª posiÃ§Ã£o pesq.': 'IS 1ª posição pesquisa',
+            'VisualizaÃ§Ãµes': 'Visualizações',
+            'Tipo de estratÃ©gia de lances': 'Tipo de estratégia de lances',
+            'Taxa de conv.': 'Taxa de conversão'
+        }
+        
+        # Renomear colunas
+        df = df.rename(columns=mapeamento_colunas)
+        
+        # Lista de colunas que devem ser numéricas
+        colunas_numericas = [
+            'CPV médio', 'Interações', 'Taxa de interação', 'Custo', 'Impressões',
+            'Cliques', 'Conversões', 'CTR', 'CPM médio', 'CPC médio', 'Custo por conversão',
+            'Custo médio', 'Engajamentos', 'IS parte superior pesquisa', 'IS 1ª posição pesquisa',
+            'Visualizações', 'Taxa de conversão'
         ]
         
-        for col in df.columns:
-            if df[col].dtype == 'object':
-                df[col] = df[col].astype(str).str.replace(',', '').str.replace('%', '').str.replace(' ', '')
-                try:
-                    df[col] = pd.to_numeric(df[col], errors='ignore')
-                except:
-                    pass
+        # Converter colunas numéricas
+        for col in colunas_numericas:
+            if col in df.columns:
+                # Converte para string, remove caracteres especiais e converte para numérico
+                df[col] = (
+                    df[col].astype(str)
+                    .str.replace('.', '', regex=False)  # Remove pontos de milhares
+                    .str.replace(',', '.', regex=False)  # Converte vírgula decimal para ponto
+                    .str.replace('%', '', regex=False)   # Remove porcentagem
+                    .str.replace(' ', '', regex=False)   # Remove espaços
+                    .replace('nan', np.nan)             # Converte strings 'nan' para NaN
+                
+                # Conversão final para numérico
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        # Remover linhas com todos valores NaN nas colunas numéricas
+        df = df.dropna(how='all', subset=colunas_numericas)
         
         return df
+    
     except Exception as e:
         st.error(f"Erro ao carregar arquivo: {str(e)}")
         return None
