@@ -178,90 +178,31 @@ def detectar_tipo_campanha(nome_campanha):
         return 'Outros'
 
 def carregar_dados(arquivo):
-    """Carrega e prepara o arquivo CSV com tratamento robusto para colunas problemáticas"""
+    """Carrega e prepara o arquivo CSV"""
     try:
-        # Tenta ler o arquivo com encoding UTF-8 primeiro, depois latin1 se falhar
-        try:
-            df = pd.read_csv(arquivo, skiprows=2, encoding='utf-8')
-        except UnicodeDecodeError:
-            df = pd.read_csv(arquivo, skiprows=2, encoding='latin1')
-        
+        df = pd.read_csv(arquivo, skiprows=2)
         df = df.dropna(how='all')
         
-        # Mapeamento dos nomes originais para nomes padronizados
-        mapeamento_colunas = {
-            'Status da campanha': 'Status da campanha',
-            'Campanha': 'Campanha',
-            'Nome do orÃ§amento': 'Nome do orçamento',
-            'CÃ³digo da moeda': 'Código da moeda',
-            'OrÃ§amento': 'Orçamento',
-            'Tipo de orÃ§amento': 'Tipo de orçamento',
-            'Status': 'Status',
-            'Motivos do status': 'Motivos do status',
-            'PontuaÃ§Ã£o de otimizaÃ§Ã£o': 'Pontuação de otimização',
-            'Tipo de campanha': 'Tipo de campanha',
-            'CPV mÃ©dio': 'CPV médio',
-            'InteraÃ§Ãµes': 'Interações',
-            'Taxa de interaÃ§Ã£o': 'Taxa de interação',
-            'Custo': 'Custo',
-            'Impr.': 'Impressões',
-            'Cliques': 'Cliques',
-            'ConversÃµes': 'Conversões',
-            'CTR': 'CTR',
-            'CPM mÃ©dio': 'CPM médio',
-            'CPC mÃ©d.': 'CPC médio',
-            'Custo / conv.': 'Custo por conversão',
-            'Custo mÃ©dio': 'Custo médio',
-            'Engajamentos': 'Engajamentos',
-            'IS parte sup. pesq.': 'IS parte superior pesquisa',
-            'IS 1Âª posiÃ§Ã£o pesq.': 'IS 1ª posição pesquisa',
-            'VisualizaÃ§Ãµes': 'Visualizações',
-            'Tipo de estratÃ©gia de lances': 'Tipo de estratégia de lances',
-            'Taxa de conv.': 'Taxa de conversão'
-        }
-        
-        # Renomear apenas as colunas que existem no DataFrame
-        colunas_existentes = [col for col in mapeamento_colunas.keys() if col in df.columns]
-        df = df.rename(columns={col: mapeamento_colunas[col] for col in colunas_existentes})
-        
-        # Lista de colunas que devem ser numéricas (apenas as que existem no DataFrame)
-        possiveis_colunas_numericas = [
-            'CPV médio', 'Interações', 'Taxa de interação', 'Custo', 'Impressões',
-            'Cliques', 'Conversões', 'CTR', 'CPM médio', 'CPC médio', 'Custo por conversão',
-            'Custo médio', 'Engajamentos', 'IS parte superior pesquisa', 'IS 1ª posição pesquisa',
-            'Visualizações', 'Taxa de conversão'
+        # Renomear colunas para nomes consistentes
+        df.columns = [
+            'Status da campanha', 'Campanha', 'Nome do orçamento', 'Código da moeda', 
+            'Orçamento', 'Tipo de orçamento', 'Status', 'Motivos do status', 
+            'Pontuação de otimização', 'Tipo de campanha', 'CPV médio', 'Interações', 
+            'Taxa de interação', 'Custo', 'Impressões', 'Cliques', 'Conversões', 
+            'CTR', 'CPM médio', 'CPC médio', 'Custo por conversão', 'Custo médio', 
+            'Engajamentos', 'IS parte superior pesquisa', 'IS 1ª posição pesquisa', 
+            'Visualizações', 'Tipo de estratégia de lances', 'Taxa de conversão'
         ]
         
-        colunas_numericas = [col for col in possiveis_colunas_numericas if col in df.columns]
-        
-        # Função auxiliar para converter valores
-        def converter_valor(val):
-            if pd.isna(val):
-                return np.nan
-            if isinstance(val, (int, float)):
-                return float(val)
-            val = str(val).strip()
-            if val == '' or val.lower() == 'nan':
-                return np.nan
-            # Remove pontos de milhar e converte vírgula decimal
-            val = val.replace('.', '').replace(',', '.')
-            # Remove caracteres não numéricos (exceto . e -)
-            val = ''.join(c for c in val if c.isdigit() or c in '.-')
-            try:
-                return float(val) if val else np.nan
-            except:
-                return np.nan
-        
-        # Converter colunas numéricas
-        for col in colunas_numericas:
-            df[col] = df[col].apply(converter_valor)
-        
-        # Remover linhas com todos valores NaN nas colunas numéricas
-        if colunas_numericas:
-            df = df.dropna(how='all', subset=colunas_numericas)
+        for col in df.columns:
+            if df[col].dtype == 'object':
+                df[col] = df[col].astype(str).str.replace(',', '').str.replace('%', '').str.replace(' ', '')
+                try:
+                    df[col] = pd.to_numeric(df[col], errors='ignore')
+                except:
+                    pass
         
         return df
-    
     except Exception as e:
         st.error(f"Erro ao carregar arquivo: {str(e)}")
         return None
