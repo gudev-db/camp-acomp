@@ -159,22 +159,32 @@ def verificar_login(email, senha):
         return False, None, "Senha incorreta"
 
 def detectar_tipo_campanha(nome_campanha):
-    nome = nome_campanha.lower()
-    if 'search' in nome:
-        return 'Search'
-    elif 'alcance' in nome or 'reach' in nome:
-        return 'Alcance'
-    elif 'conversao' in nome or 'conversão' in nome or 'conversion' in nome:
-        return 'Conversão'
-    elif 'display' in nome:
-        return 'Display'
-    elif 'video' in nome or 'vídeo' in nome:
-        return 'Video'
-    elif 'discovery' in nome:
-        return 'Discovery'
-    elif 'pmax' in nome or 'performance max' in nome:
-        return 'Performance Max'
-    else:
+    """Detecta o tipo de campanha com base no nome"""
+    try:
+        # Verifica se o valor é nulo ou não é string
+        if pd.isna(nome_campanha) or not isinstance(nome_campanha, str):
+            return 'Outros'
+            
+        nome = nome_campanha.lower()
+        
+        if 'search' in nome or 'pesquisa' in nome:
+            return 'Search'
+        elif 'alcance' in nome or 'reach' in nome:
+            return 'Alcance'
+        elif 'conversao' in nome or 'conversão' in nome or 'conversion' in nome:
+            return 'Conversão'
+        elif 'display' in nome:
+            return 'Display'
+        elif 'video' in nome or 'vídeo' in nome:
+            return 'Video'
+        elif 'discovery' in nome:
+            return 'Discovery'
+        elif 'pmax' in nome or 'performance max' in nome:
+            return 'Performance Max'
+        else:
+            return 'Outros'
+    except Exception as e:
+        print(f"Erro ao detectar tipo de campanha: {str(e)}")
         return 'Outros'
 
 def carregar_dados(arquivo):
@@ -183,6 +193,11 @@ def carregar_dados(arquivo):
         df = pd.read_csv(arquivo, skiprows=2)
         df = df.dropna(how='all')
         
+        # Verifica se a coluna 'Campanha' existe
+        if 'Campanha' not in df.columns:
+            st.error("O arquivo CSV não contém uma coluna 'Campanha'")
+            return None
+            
         # Renomear colunas para nomes consistentes
         df.columns = [
             'Status da campanha', 'Campanha', 'Nome do orçamento', 'Código da moeda', 
@@ -194,36 +209,50 @@ def carregar_dados(arquivo):
             'Visualizações', 'Tipo de estratégia de lances', 'Taxa de conversão'
         ]
         
-        for col in df.columns:
-            if df[col].dtype == 'object':
-                df[col] = df[col].astype(str).str.replace(',', '').str.replace('%', '').str.replace(' ', '')
-                try:
-                    df[col] = pd.to_numeric(df[col], errors='ignore')
-                except:
-                    pass
+        # Converter colunas numéricas
+        colunas_numericas = [
+            'CPV médio', 'Interações', 'Taxa de interação', 'Custo', 'Impressões',
+            'Cliques', 'Conversões', 'CTR', 'CPM médio', 'CPC médio', 
+            'Custo por conversão', 'Custo médio', 'Engajamentos',
+            'IS parte superior pesquisa', 'IS 1ª posição pesquisa', 'Visualizações',
+            'Taxa de conversão'
+        ]
+        
+        for col in colunas_numericas:
+            if col in df.columns:
+                # Remove caracteres não numéricos e converte
+                df[col] = df[col].astype(str).str.replace(',', '.').str.replace('%', '').str.replace(' ', '')
+                df[col] = pd.to_numeric(df[col], errors='coerce')
         
         return df
     except Exception as e:
         st.error(f"Erro ao carregar arquivo: {str(e)}")
         return None
 
-
-# Função para detectar etapa do funil pelo nome da campanha
 def detectar_etapa_funil(nome_campanha):
-    nome = nome_campanha.lower()
-    
-    # Palavras-chave para cada etapa
-    topo_keywords = ['awareness', 'consciencia', 'alcance', 'reach', 'branding', 'marca']
-    meio_keywords = ['consideracao', 'consideração', 'consideration', 'engajamento', 'engagement', 'video', 'vídeo']
-    fundo_keywords = ['conversao', 'conversão', 'conversion', 'venda', 'sales', 'lead', 'performance', 'pmax']
-    
-    if any(keyword in nome for keyword in topo_keywords):
-        return 'Topo'
-    elif any(keyword in nome for keyword in meio_keywords):
-        return 'Meio'
-    elif any(keyword in nome for keyword in fundo_keywords):
-        return 'Fundo'
-    else:
+    """Detecta a etapa do funil com base no nome da campanha"""
+    try:
+        # Verifica se o valor é nulo ou não é string
+        if pd.isna(nome_campanha) or not isinstance(nome_campanha, str):
+            return 'Outros'
+            
+        nome = nome_campanha.lower()
+        
+        # Palavras-chave para cada etapa
+        topo_keywords = ['awareness', 'consciencia', 'alcance', 'reach', 'branding', 'marca']
+        meio_keywords = ['consideracao', 'consideração', 'consideration', 'engajamento', 'engagement', 'video', 'vídeo']
+        fundo_keywords = ['conversao', 'conversão', 'conversion', 'venda', 'sales', 'lead', 'performance', 'pmax']
+        
+        if any(keyword in nome for keyword in topo_keywords):
+            return 'Topo'
+        elif any(keyword in nome for keyword in meio_keywords):
+            return 'Meio'
+        elif any(keyword in nome for keyword in fundo_keywords):
+            return 'Fundo'
+        else:
+            return 'Outros'
+    except Exception as e:
+        print(f"Erro ao detectar etapa do funil: {str(e)}")
         return 'Outros'
 
 # Métricas por etapa do funil
@@ -232,7 +261,6 @@ METRICAS_POR_ETAPA = {
     'Meio': ['Impressões', 'Cliques', 'CTR', 'CPC médio', 'CPM médio', 'Custo'],
     'Fundo': ['Impressões', 'Cliques', 'Conversões', 'CTR', 'CPM médio', 'CPC médio', 'Custo por conversão']
 }
-
 
 def calcular_metricas(df):
     """Calcula estatísticas básicas para todas as colunas numéricas"""
@@ -335,9 +363,19 @@ def obter_relatorio_completo(relatorio_id):
 def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, cliente_info=None, df_anterior=None, usuario_id=None):
     """Gera um relatório analítico usando LLM e salva no MongoDB"""
     if not gemini_api_key:
-        return "🔒 Relatório avançado desabilitado. Configure a API key do Gemini para ativar esta funcionalidade."
+        return {
+            "partes": [{"titulo": "Aviso", "conteudo": "🔒 Relatório avançado desabilitado. Configure a API key do Gemini para ativar esta funcionalidade."}],
+            "texto_completo": "🔒 Relatório avançado desabilitado. Configure a API key do Gemini para ativar esta funcionalidade."
+        }
     
     try:
+        # Verifica se temos um DataFrame válido
+        if not isinstance(df, pd.DataFrame) or df.empty:
+            return {
+                "partes": [{"titulo": "Erro", "conteudo": "Dados inválidos para gerar relatório"}],
+                "texto_completo": "Dados inválidos para gerar relatório"
+            }
+        
         # Prepara os dados para o LLM
         dados_para_llm = ""
         
@@ -349,7 +387,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                 dados_para_llm += f"- {col}: Média={stats['média']:.2f}, Mediana={stats['mediana']:.2f}, Min={stats['min']:.2f}, Max={stats['max']:.2f}\n"
         
         # Se tivermos dados do mês anterior, adicionamos análise comparativa
-        if df_anterior is not None:
+        if df_anterior is not None and isinstance(df_anterior, pd.DataFrame) and not df_anterior.empty:
             metricas_anterior = calcular_metricas(df_anterior)
             dados_para_llm += "\n## Análise Comparativa Mensal:\n"
             
@@ -361,19 +399,19 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     variacao = ((media_atual - media_anterior) / media_anterior) * 100 if media_anterior != 0 else 0
                     
                     dados_para_llm += (f"- {col}: {media_atual:.2f} (Mês Atual) vs {media_anterior:.2f} (Mês Anterior) → "
-                                      f"{'↑' if variacao > 0 else '↓'} {abs(variacao):.1f}%\n")
+                                    f"{'↑' if variacao > 0 else '↓'} {abs(variacao):.1f}%\n")
         
         # Top e bottom performers
         dados_para_llm += "\n## Melhores Campanhas - Mês Atual:\n"
-        for col in colunas_selecionadas[:10]:  # Limita a 3 métricas para não ficar muito longo
-            if col in df.columns:
-                top3 = df.nlargest(10, col)[['Campanha', col]]
+        for col in colunas_selecionadas[:10]:  # Limita a 10 métricas para não ficar muito longo
+            if col in df.columns and pd.api.types.is_numeric_dtype(df[col]):
+                top3 = df.nlargest(3, col)[['Campanha', col]]
                 dados_para_llm += f"- {col}:\n"
                 for _, row in top3.iterrows():
                     dados_para_llm += f"  - {row['Campanha']}: {row[col]:.2f}\n"
         
         # Análise de correlação entre métricas (quando temos ambos períodos)
-        if df_anterior is not None:
+        if df_anterior is not None and isinstance(df_anterior, pd.DataFrame) and not df_anterior.empty:
             dados_para_llm += "\n## Insights de Correlação:\n"
             dados_para_llm += "- Comparação automática entre variações de métricas:\n"
             
@@ -712,11 +750,13 @@ def mostrar_app_principal():
             
             with st.sidebar:
                 st.header("🔧 Configurações de Análise")
-
+                
+                # Filtro por etapa do funil
+                etapas_disponiveis = sorted(df['Etapa Funil'].unique())
                 etapas_funil = st.multiselect(
                     "Etapa do Funil",
-                    options=sorted(df['Etapa Funil'].unique()),
-                    default=sorted(df['Etapa Funil'].unique())
+                    options=etapas_disponiveis,
+                    default=etapas_disponiveis
                 )
                 
                 # Seleciona métricas baseadas na etapa do funil
@@ -724,10 +764,8 @@ def mostrar_app_principal():
                 for etapa in etapas_funil:
                     metricas_selecionadas.extend(METRICAS_POR_ETAPA.get(etapa, []))
                 
-                # Remove duplicatas
-                metricas_selecionadas = list(set(metricas_selecionadas))
-                
-                
+                # Remove duplicatas e mantém apenas métricas existentes no dataframe
+                metricas_selecionadas = [m for m in list(set(metricas_selecionadas)) if m in df.columns]
                 
                 # Tipo de relatório
                 tipo_relatorio = st.radio(
@@ -736,42 +774,46 @@ def mostrar_app_principal():
                     index=0
                 )
                 
-                # Filtros
-                st.subheader("Filtros")
+                # Filtros adicionais
+                st.subheader("Filtros Adicionais")
                 
-                # Adiciona coluna de tipo detectado ao dataframe
-                if st.session_state.dados_atual is not None:
-                    df = st.session_state.dados_atual.copy()
-                    df['Tipo Detectado'] = df['Campanha'].apply(detectar_tipo_campanha)
-                    
-                    # Filtro por tipo detectado
-                    tipos_detectados = sorted(df['Tipo Detectado'].unique())
-                    tipos_selecionados = st.multiselect(
-                        "Tipo de Campanha (detectado pelo nome)",
-                        options=tipos_detectados,
-                        default=tipos_detectados
-                    )
-                
-                tipo_campanha = st.multiselect(
-                    "Tipo de Campanha (do relatório)",
-                    options=df['Tipo de campanha'].unique(),
-                    default=df['Tipo de campanha'].unique()
+                # Filtro por tipo detectado
+                tipos_detectados = sorted(df['Tipo Detectado'].unique())
+                tipos_selecionados = st.multiselect(
+                    "Tipo de Campanha (detectado pelo nome)",
+                    options=tipos_detectados,
+                    default=tipos_detectados
                 )
                 
+                # Filtro por tipo de campanha
+                tipos_campanha = sorted(df['Tipo de campanha'].unique())
+                tipo_campanha = st.multiselect(
+                    "Tipo de Campanha (do relatório)",
+                    options=tipos_campanha,
+                    default=tipos_campanha
+                )
+                
+                # Filtro por status da campanha
+                status_disponiveis = sorted(df['Status da campanha'].unique())
                 status_campanha = st.multiselect(
                     "Status da Campanha",
-                    options=df['Status da campanha'].unique(),
-                    default=df['Status da campanha'].unique()
+                    options=status_disponiveis,
+                    default=['Ativada'] if 'Ativada' in status_disponiveis else status_disponiveis
                 )
                 
                 mostrar_boxplots = st.checkbox("Mostrar boxplots das métricas")
             
-            # Modifica a aplicação dos filtros para incluir o tipo detectado
+            # Aplica filtros
             df_filtrado = df[
+                (df['Etapa Funil'].isin(etapas_funil)) &
                 (df['Tipo Detectado'].isin(tipos_selecionados)) &
                 (df['Tipo de campanha'].isin(tipo_campanha)) &
                 (df['Status da campanha'].isin(status_campanha))
-            ]
+            ].copy()
+            
+            # Contagem correta de campanhas ativas e pausadas
+            contagem_ativas = len(df_filtrado[df_filtrado['Status da campanha'] == 'Ativada'])
+            contagem_pausadas = len(df_filtrado[df_filtrado['Status da campanha'] == 'Pausada'])
             
             # Sub-abas de análise
             tab1, tab2, tab3, tab4 = st.tabs(["📋 Visão Geral", "📊 Análise por Métrica", "🔄 Comparativo Mensal", "🧠 Relatório Avançado"])
@@ -781,39 +823,59 @@ def mostrar_app_principal():
                 
                 col1, col2, col3 = st.columns(3)
                 col1.metric("Total de Campanhas", len(df_filtrado))
-                col2.metric("Campanhas Ativas", len(df_filtrado[df_filtrado['Status da campanha'] == 'Ativada']))
-                col3.metric("Campanhas Pausadas", len(df_filtrado[df_filtrado['Status da campanha'] == 'Pausada']))
+                col2.metric("Campanhas Ativas", contagem_ativas)
+                col3.metric("Campanhas Pausadas", contagem_pausadas)
                 
-                st.dataframe(df_filtrado, use_container_width=True)
+                # Mostra distribuição por etapa do funil
+                st.subheader("Distribuição por Etapa do Funil")
+                fig, ax = plt.subplots(figsize=(8, 4))
+                df_filtrado['Etapa Funil'].value_counts().plot(kind='bar', ax=ax, color=['#4CAF50', '#2196F3', '#FF9800'])
+                plt.title('Campanhas por Etapa do Funil')
+                plt.xlabel('Etapa do Funil')
+                plt.ylabel('Número de Campanhas')
+                st.pyplot(fig)
+                
+                # Mostra dataframe com as métricas relevantes
+                st.dataframe(df_filtrado[['Campanha', 'Etapa Funil', 'Tipo Detectado', 'Status da campanha'] + metricas_selecionadas], 
+                            use_container_width=True)
             
             with tab2:
                 st.subheader("Análise Detalhada por Métrica - Mês Atual")
                 
                 metrica_selecionada = st.selectbox(
                     "Selecione uma métrica para análise detalhada",
-                    options=colunas_numericas
+                    options=metricas_selecionadas
                 )
                 
                 if metrica_selecionada:
-                    stats = metricas[metrica_selecionada]
-                    
-                    col1, col2, col3, col4 = st.columns(4)
-                    col1.metric("Média", f"{stats['média']:,.2f}")
-                    col2.metric("Mediana", f"{stats['mediana']:,.2f}")
-                    col3.metric("Mínimo", f"{stats['min']:,.2f}")
-                    col4.metric("Máximo", f"{stats['max']:,.2f}")
-                    
-                    if mostrar_boxplots:
-                        st.subheader("Distribuição dos Valores")
-                        criar_boxplot(df_filtrado, metrica_selecionada)
-                    
-                    st.subheader("Campanhas acima da média")
-                    top5 = df_filtrado.nlargest(5, metrica_selecionada)[['Campanha', metrica_selecionada]]
-                    st.dataframe(top5.style.format({metrica_selecionada: "{:,.2f}"}))
-                    
-                    st.subheader("Campanhas abaixo da média")
-                    bottom5 = df_filtrado.nsmallest(5, metrica_selecionada)[['Campanha', metrica_selecionada]]
-                    st.dataframe(bottom5.style.format({metrica_selecionada: "{:,.2f}"}))
+                    # Verifica se a métrica é numérica
+                    if pd.api.types.is_numeric_dtype(df_filtrado[metrica_selecionada]):
+                        stats = {
+                            'média': df_filtrado[metrica_selecionada].mean(),
+                            'mediana': df_filtrado[metrica_selecionada].median(),
+                            'min': df_filtrado[metrica_selecionada].min(),
+                            'max': df_filtrado[metrica_selecionada].max()
+                        }
+                        
+                        col1, col2, col3, col4 = st.columns(4)
+                        col1.metric("Média", f"{stats['média']:,.2f}")
+                        col2.metric("Mediana", f"{stats['mediana']:,.2f}")
+                        col3.metric("Mínimo", f"{stats['min']:,.2f}")
+                        col4.metric("Máximo", f"{stats['max']:,.2f}")
+                        
+                        if mostrar_boxplots:
+                            st.subheader("Distribuição dos Valores")
+                            criar_boxplot(df_filtrado, metrica_selecionada)
+                        
+                        st.subheader(f"Top 5 Campanhas - {metrica_selecionada}")
+                        top5 = df_filtrado.nlargest(5, metrica_selecionada)[['Campanha', 'Etapa Funil', metrica_selecionada]]
+                        st.dataframe(top5.style.format({metrica_selecionada: "{:,.2f}"}))
+                        
+                        st.subheader(f"Bottom 5 Campanhas - {metrica_selecionada}")
+                        bottom5 = df_filtrado.nsmallest(5, metrica_selecionada)[['Campanha', 'Etapa Funil', metrica_selecionada]]
+                        st.dataframe(bottom5.style.format({metrica_selecionada: "{:,.2f}"}))
+                    else:
+                        st.warning(f"A métrica {metrica_selecionada} não é numérica e não pode ser analisada desta forma")
             
             with tab3:
                 st.subheader("Comparativo Mensal")
@@ -821,17 +883,19 @@ def mostrar_app_principal():
                 if st.session_state.dados_anterior is not None:
                     # Aplica os mesmos filtros ao mês anterior
                     df_anterior_filtrado = st.session_state.dados_anterior[
+                        (st.session_state.dados_anterior['Etapa Funil'].isin(etapas_funil)) &
+                        (st.session_state.dados_anterior['Tipo Detectado'].isin(tipos_selecionados)) &
                         (st.session_state.dados_anterior['Tipo de campanha'].isin(tipo_campanha)) &
                         (st.session_state.dados_anterior['Status da campanha'].isin(status_campanha))
                     ]
                     
                     metrica_comparacao = st.selectbox(
                         "Selecione uma métrica para comparação",
-                        options=colunas_numericas,
+                        options=metricas_selecionadas,
                         key="comparacao_metrica"
                     )
                     
-                    if metrica_comparacao:
+                    if metrica_comparacao and pd.api.types.is_numeric_dtype(df_filtrado[metrica_comparacao]):
                         variacao = criar_grafico_comparativo(df_filtrado, df_anterior_filtrado, metrica_comparacao)
                         
                         # Tabela comparativa detalhada
@@ -889,11 +953,11 @@ def mostrar_app_principal():
                     relatorio = gerar_relatorio_llm(
                         df_filtrado, 
                         metricas, 
-                        
+                        metricas_selecionadas,  # Usa apenas as métricas relevantes para o funil
                         tipo_relatorio, 
                         cliente_info,
                         st.session_state.dados_anterior if st.session_state.dados_anterior is not None else None,
-                        usuario.get("_id")
+                        usuario.get("_id") if usuario else None
                     )
                     
                     # Exibe cada parte do relatório em seções expansíveis
@@ -915,7 +979,7 @@ def mostrar_app_principal():
         st.subheader("Meus Relatórios Gerados")
         
         # Obtém os relatórios do usuário
-        relatorios = obter_relatorios_usuario(usuario.get("_id"))
+        relatorios = obter_relatorios_usuario(usuario.get("_id")) if usuario else []
         
         if relatorios:
             st.write(f"📚 Você tem {len(relatorios)} relatórios salvos:")
