@@ -889,7 +889,7 @@ def mostrar_app_principal():
                     relatorio = gerar_relatorio_llm(
                         df_filtrado, 
                         metricas, 
-                        metricas_relatorio, 
+                        
                         tipo_relatorio, 
                         cliente_info,
                         st.session_state.dados_anterior if st.session_state.dados_anterior is not None else None,
