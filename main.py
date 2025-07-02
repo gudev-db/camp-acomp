@@ -204,7 +204,7 @@ def carregar_dados(arquivo):
             'Orçamento', 'Tipo de orçamento', 'Status', 'Motivos do status', 
             'Pontuação de otimização',  'CPV médio', 'Interações', 
             'Taxa de interação', 'Custo', 'Impressões', 'Cliques', 'Conversões', 
-            'CTR', 'CPM médio', 'CPC médio', 'Custo por conversão', 'Custo médio', 
+            'CTR', 'CPM médio', 'CPC médio', 'Tipo de Campanha', 'Custo por conversão', 'Custo médio', 
             'Engajamentos', 'IS parte superior pesquisa', 'IS 1ª posição pesquisa', 
             'Visualizações', 'Tipo de estratégia de lances', 'Taxa de conversão'
         ]
