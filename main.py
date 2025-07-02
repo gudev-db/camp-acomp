@@ -712,10 +712,11 @@ def mostrar_app_principal():
                 st.header("🔧 Configurações de Análise")
                 
                 # Filtro por etapa do funil
+                etapas_disponiveis = sorted(df['Etapa Funil'].unique())
                 etapas_funil = st.multiselect(
                     "Etapa do Funil",
-                    options=sorted(df['Etapa Funil'].unique()),
-                    default=sorted(df['Etapa Funil'].unique())
+                    options=etapas_disponiveis,
+                    default=etapas_disponiveis
                 )
                 
                 # Métricas relevantes para as etapas selecionadas
@@ -751,16 +752,20 @@ def mostrar_app_principal():
                     default=tipos_detectados
                 )
                 
+                # Filtro por tipo de campanha
+                tipos_campanha = sorted(df['Tipo de campanha'].unique())
                 tipo_campanha = st.multiselect(
                     "Tipo de Campanha (do relatório)",
-                    options=df['Tipo de campanha'].unique(),
-                    default=df['Tipo de campanha'].unique()
+                    options=tipos_campanha,
+                    default=tipos_campanha
                 )
                 
+                # Filtro por status da campanha
+                status_disponiveis = sorted(df['Status da campanha'].unique())
                 status_campanha = st.multiselect(
                     "Status da Campanha",
-                    options=df['Status da campanha'].unique(),
-                    default=['Ativa']  # Default para mostrar apenas ativas
+                    options=status_disponiveis,
+                    default=['Ativa'] if 'Ativa' in status_disponiveis else status_disponiveis
                 )
                 
                 mostrar_boxplots = st.checkbox("Mostrar boxplots das métricas")
