@@ -237,7 +237,7 @@ def carregar_dados(arquivo):
                     .str.replace(',', '.', regex=False)  # Converte vírgula decimal para ponto
                     .str.replace('%', '', regex=False)   # Remove porcentagem
                     .str.replace(' ', '', regex=False)   # Remove espaços
-                    .replace('nan', np.nan)             # Converte strings 'nan' para NaN
+                    .replace('nan', np.nan)  )           # Converte strings 'nan' para NaN
                 
                 # Conversão final para numérico
                 df[col] = pd.to_numeric(df[col], errors='coerce')
