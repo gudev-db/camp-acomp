@@ -779,7 +779,7 @@ def mostrar_app_principal():
             ].copy()
             
             # Contagem correta de campanhas ativas e pausadas
-            contagem_ativas = len(df_filtrado[df_filtrado['Status da campanha'] == 'Ativa'])
+            contagem_ativas = len(df_filtrado[df_filtrado['Status da campanha'] == 'Ativada'])
             contagem_pausadas = len(df_filtrado[df_filtrado['Status da campanha'] == 'Pausada'])
             
             # Sub-abas de análise
