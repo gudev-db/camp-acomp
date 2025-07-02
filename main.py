@@ -225,6 +225,31 @@ def calcular_metricas(df):
     
     return metricas
 
+# Função para detectar etapa do funil pelo nome da campanha
+def detectar_etapa_funil(nome_campanha):
+    nome = nome_campanha.lower()
+    
+    # Palavras-chave para cada etapa
+    topo_keywords = ['awareness', 'consciencia', 'alcance', 'reach', 'branding', 'marca']
+    meio_keywords = ['consideracao', 'consideração', 'consideration', 'engajamento', 'engagement', 'video', 'vídeo']
+    fundo_keywords = ['conversao', 'conversão', 'conversion', 'venda', 'sales', 'lead', 'performance', 'pmax']
+    
+    if any(keyword in nome for keyword in topo_keywords):
+        return 'Topo'
+    elif any(keyword in nome for keyword in meio_keywords):
+        return 'Meio'
+    elif any(keyword in nome for keyword in fundo_keywords):
+        return 'Fundo'
+    else:
+        return 'Outros'
+
+# Métricas por etapa do funil
+METRICAS_POR_ETAPA = {
+    'Topo': ['Impressões', 'Alcance', 'Custo', 'CPM médio', 'Cliques', 'CTR'],
+    'Meio': ['Impressões', 'Cliques', 'CTR', 'CPC médio', 'CPM médio', 'Custo'],
+    'Fundo': ['Impressões', 'Cliques', 'Conversões', 'CTR', 'CPM médio', 'CPC médio', 'Custo por conversão']
+}
+
 def criar_boxplot(df, coluna):
     """Cria um boxplot para uma coluna numérica"""
     try:
@@ -643,6 +668,9 @@ def mostrar_app_principal():
             if arquivo_atual:
                 df_atual = carregar_dados(arquivo_atual)
                 if df_atual is not None:
+                    # Adiciona colunas de tipo detectado e etapa do funil
+                    df_atual['Tipo Detectado'] = df_atual['Campanha'].apply(detectar_tipo_campanha)
+                    df_atual['Etapa Funil'] = df_atual['Campanha'].apply(detectar_etapa_funil)
                     st.session_state.dados_atual = df_atual
                     st.success("✅ Dados do mês atual carregados com sucesso!")
         
@@ -656,6 +684,9 @@ def mostrar_app_principal():
             if arquivo_anterior:
                 df_anterior = carregar_dados(arquivo_anterior)
                 if df_anterior is not None:
+                    # Adiciona colunas de tipo detectado e etapa do funil
+                    df_anterior['Tipo Detectado'] = df_anterior['Campanha'].apply(detectar_tipo_campanha)
+                    df_anterior['Etapa Funil'] = df_anterior['Campanha'].apply(detectar_etapa_funil)
                     st.session_state.dados_anterior = df_anterior
                     st.success("✅ Dados do mês anterior carregados com sucesso!")
         
@@ -680,12 +711,27 @@ def mostrar_app_principal():
             with st.sidebar:
                 st.header("🔧 Configurações de Análise")
                 
-                # Seleção de métricas
-                metricas_relatorio = st.multiselect(
-                    "Selecione as métricas para análise",
-                    options=colunas_numericas,
-                    default=colunas_numericas[:5] if len(colunas_numericas) > 5 else colunas_numericas
+                # Filtro por etapa do funil
+                etapas_funil = st.multiselect(
+                    "Etapa do Funil",
+                    options=sorted(df['Etapa Funil'].unique()),
+                    default=sorted(df['Etapa Funil'].unique())
                 )
+                
+                # Métricas relevantes para as etapas selecionadas
+                METRICAS_POR_ETAPA = {
+                    'Topo': ['Impressões', 'Alcance', 'Custo', 'CPM médio', 'Cliques', 'CTR'],
+                    'Meio': ['Impressões', 'Cliques', 'CTR', 'CPC médio', 'CPM médio', 'Custo'],
+                    'Fundo': ['Impressões', 'Cliques', 'Conversões', 'CTR', 'CPM médio', 'CPC médio', 'Custo por conversão']
+                }
+                
+                # Seleciona métricas baseadas na etapa do funil
+                metricas_selecionadas = []
+                for etapa in etapas_funil:
+                    metricas_selecionadas.extend(METRICAS_POR_ETAPA.get(etapa, []))
+                
+                # Remove duplicatas e mantém apenas métricas existentes no dataframe
+                metricas_selecionadas = [m for m in list(set(metricas_selecionadas)) if m in df.columns]
                 
                 # Tipo de relatório
                 tipo_relatorio = st.radio(
@@ -694,21 +740,16 @@ def mostrar_app_principal():
                     index=0
                 )
                 
-                # Filtros
-                st.subheader("Filtros")
+                # Filtros adicionais
+                st.subheader("Filtros Adicionais")
                 
-                # Adiciona coluna de tipo detectado ao dataframe
-                if st.session_state.dados_atual is not None:
-                    df = st.session_state.dados_atual.copy()
-                    df['Tipo Detectado'] = df['Campanha'].apply(detectar_tipo_campanha)
-                    
-                    # Filtro por tipo detectado
-                    tipos_detectados = sorted(df['Tipo Detectado'].unique())
-                    tipos_selecionados = st.multiselect(
-                        "Tipo de Campanha (detectado pelo nome)",
-                        options=tipos_detectados,
-                        default=tipos_detectados
-                    )
+                # Filtro por tipo detectado
+                tipos_detectados = sorted(df['Tipo Detectado'].unique())
+                tipos_selecionados = st.multiselect(
+                    "Tipo de Campanha (detectado pelo nome)",
+                    options=tipos_detectados,
+                    default=tipos_detectados
+                )
                 
                 tipo_campanha = st.multiselect(
                     "Tipo de Campanha (do relatório)",
@@ -719,17 +760,22 @@ def mostrar_app_principal():
                 status_campanha = st.multiselect(
                     "Status da Campanha",
                     options=df['Status da campanha'].unique(),
-                    default=df['Status da campanha'].unique()
+                    default=['Ativa']  # Default para mostrar apenas ativas
                 )
                 
                 mostrar_boxplots = st.checkbox("Mostrar boxplots das métricas")
             
-            # Modifica a aplicação dos filtros para incluir o tipo detectado
+            # Aplica filtros
             df_filtrado = df[
+                (df['Etapa Funil'].isin(etapas_funil)) &
                 (df['Tipo Detectado'].isin(tipos_selecionados)) &
                 (df['Tipo de campanha'].isin(tipo_campanha)) &
                 (df['Status da campanha'].isin(status_campanha))
-            ]
+            ].copy()
+            
+            # Contagem correta de campanhas ativas e pausadas
+            contagem_ativas = len(df_filtrado[df_filtrado['Status da campanha'] == 'Ativa'])
+            contagem_pausadas = len(df_filtrado[df_filtrado['Status da campanha'] == 'Pausada'])
             
             # Sub-abas de análise
             tab1, tab2, tab3, tab4 = st.tabs(["📋 Visão Geral", "📊 Análise por Métrica", "🔄 Comparativo Mensal", "🧠 Relatório Avançado"])
@@ -739,17 +785,28 @@ def mostrar_app_principal():
                 
                 col1, col2, col3 = st.columns(3)
                 col1.metric("Total de Campanhas", len(df_filtrado))
-                col2.metric("Campanhas Ativas", len(df_filtrado[df_filtrado['Status da campanha'] == 'Ativa']))
-                col3.metric("Campanhas Pausadas", len(df_filtrado[df_filtrado['Status da campanha'] == 'Pausada']))
+                col2.metric("Campanhas Ativas", contagem_ativas)
+                col3.metric("Campanhas Pausadas", contagem_pausadas)
                 
-                st.dataframe(df_filtrado, use_container_width=True)
+                # Mostra distribuição por etapa do funil
+                st.subheader("Distribuição por Etapa do Funil")
+                fig, ax = plt.subplots(figsize=(8, 4))
+                df_filtrado['Etapa Funil'].value_counts().plot(kind='bar', ax=ax, color=['#4CAF50', '#2196F3', '#FF9800'])
+                plt.title('Campanhas por Etapa do Funil')
+                plt.xlabel('Etapa do Funil')
+                plt.ylabel('Número de Campanhas')
+                st.pyplot(fig)
+                
+                # Mostra dataframe com as métricas relevantes
+                st.dataframe(df_filtrado[['Campanha', 'Etapa Funil', 'Tipo Detectado', 'Status da campanha'] + metricas_selecionadas], 
+                            use_container_width=True)
             
             with tab2:
                 st.subheader("Análise Detalhada por Métrica - Mês Atual")
                 
                 metrica_selecionada = st.selectbox(
                     "Selecione uma métrica para análise detalhada",
-                    options=colunas_numericas
+                    options=metricas_selecionadas
                 )
                 
                 if metrica_selecionada:
@@ -765,12 +822,12 @@ def mostrar_app_principal():
                         st.subheader("Distribuição dos Valores")
                         criar_boxplot(df_filtrado, metrica_selecionada)
                     
-                    st.subheader("Campanhas acima da média")
-                    top5 = df_filtrado.nlargest(5, metrica_selecionada)[['Campanha', metrica_selecionada]]
+                    st.subheader(f"Top 5 Campanhas - {metrica_selecionada}")
+                    top5 = df_filtrado.nlargest(5, metrica_selecionada)[['Campanha', 'Etapa Funil', metrica_selecionada]]
                     st.dataframe(top5.style.format({metrica_selecionada: "{:,.2f}"}))
                     
-                    st.subheader("Campanhas abaixo da média")
-                    bottom5 = df_filtrado.nsmallest(5, metrica_selecionada)[['Campanha', metrica_selecionada]]
+                    st.subheader(f"Bottom 5 Campanhas - {metrica_selecionada}")
+                    bottom5 = df_filtrado.nsmallest(5, metrica_selecionada)[['Campanha', 'Etapa Funil', metrica_selecionada]]
                     st.dataframe(bottom5.style.format({metrica_selecionada: "{:,.2f}"}))
             
             with tab3:
@@ -779,13 +836,15 @@ def mostrar_app_principal():
                 if st.session_state.dados_anterior is not None:
                     # Aplica os mesmos filtros ao mês anterior
                     df_anterior_filtrado = st.session_state.dados_anterior[
+                        (st.session_state.dados_anterior['Etapa Funil'].isin(etapas_funil)) &
+                        (st.session_state.dados_anterior['Tipo Detectado'].isin(tipos_selecionados)) &
                         (st.session_state.dados_anterior['Tipo de campanha'].isin(tipo_campanha)) &
                         (st.session_state.dados_anterior['Status da campanha'].isin(status_campanha))
                     ]
                     
                     metrica_comparacao = st.selectbox(
                         "Selecione uma métrica para comparação",
-                        options=colunas_numericas,
+                        options=metricas_selecionadas,
                         key="comparacao_metrica"
                     )
                     
@@ -847,7 +906,7 @@ def mostrar_app_principal():
                     relatorio = gerar_relatorio_llm(
                         df_filtrado, 
                         metricas, 
-                        metricas_relatorio, 
+                        metricas_selecionadas,  # Usa apenas as métricas relevantes para o funil
                         tipo_relatorio, 
                         cliente_info,
                         st.session_state.dados_anterior if st.session_state.dados_anterior is not None else None,
