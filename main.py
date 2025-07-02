@@ -660,7 +660,7 @@ def mostrar_app_principal():
         # Seção de upload de arquivos e informações do cliente
         col1, col2 = st.columns(2)
         
-         with col1:
+        with col1:
             st.subheader("📅 Mês Atual (Mais Recente)")
             arquivo_atual = st.file_uploader(
                 "Carregue o relatório do mês atual",
