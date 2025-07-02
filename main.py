@@ -712,13 +712,22 @@ def mostrar_app_principal():
             
             with st.sidebar:
                 st.header("🔧 Configurações de Análise")
-                
-                # Seleção de métricas
-                metricas_relatorio = st.multiselect(
-                    "Selecione as métricas para análise",
-                    options=colunas_numericas,
-                    default=colunas_numericas[:5] if len(colunas_numericas) > 5 else colunas_numericas
+
+                etapas_funil = st.multiselect(
+                    "Etapa do Funil",
+                    options=sorted(df['Etapa Funil'].unique()),
+                    default=sorted(df['Etapa Funil'].unique())
                 )
+                
+                # Seleciona métricas baseadas na etapa do funil
+                metricas_selecionadas = []
+                for etapa in etapas_funil:
+                    metricas_selecionadas.extend(METRICAS_POR_ETAPA.get(etapa, []))
+                
+                # Remove duplicatas
+                metricas_selecionadas = list(set(metricas_selecionadas))
+                
+                
                 
                 # Tipo de relatório
                 tipo_relatorio = st.radio(
