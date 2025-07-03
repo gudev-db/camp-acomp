@@ -10,8 +10,6 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 import hashlib
 import time
-from google import genai
-from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
 
 # Configuração da página
 st.set_page_config(
@@ -113,7 +111,6 @@ if not gemini_api_key:
 
 # Funções do aplicativo ==============================================
 
-
 def criar_usuario(email, senha, nome):
     """Cria um novo usuário no banco de dados"""
     # Verifica se o usuário já existe
@@ -196,8 +193,6 @@ def carregar_dados(arquivo):
         # Lê o arquivo CSV com encoding apropriado
         df = pd.read_csv(arquivo, skiprows=2, encoding='utf-8')
         df = df.dropna(how='all')
-
-        
         
         # Mapeamento de colunas com problemas de encoding para nomes consistentes
         mapeamento_colunas = {
@@ -403,8 +398,6 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
         
         # Prepara os dados para o LLM
         dados_para_llm = ""
-
-        
         
         # Resumo estatístico do período atual
         dados_para_llm += "## Resumo Estatístico - Mês Atual:\n"
@@ -527,8 +520,6 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     - Alertas sobre problemas identificados
                     
                     Dados: {dados_para_llm}
-
-                    Novidades: {pls}
  
                     """),
                     ("6. Conclusão com resumo executivo", f"""
@@ -615,7 +606,6 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     - Planejamento futuro
                     
                     Dados: {dados_para_llm}
-                    Novidades: {pls}
 
                     """)
                 ]
