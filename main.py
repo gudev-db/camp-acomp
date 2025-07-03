@@ -404,21 +404,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
         # Prepara os dados para o LLM
         dados_para_llm = ""
 
-        model_id = "gemini-2.0-flash"
-
-        google_search_tool = Tool(
-                                    google_search = GoogleSearch()
-                                )
-                                
-                                # Agente de pesquisa política
-        pls = client.models.generate_content(
-                                    model=model_id,
-                                    contents="Faça uma pesquisa sobre notícias sobre novidades em otimização de campanhas",
-                                    config=GenerateContentConfig(
-                                        tools=[google_search_tool],
-                                        response_modalities=["TEXT"],
-                                    )
-                                )
+        
         
         # Resumo estatístico do período atual
         dados_para_llm += "## Resumo Estatístico - Mês Atual:\n"
