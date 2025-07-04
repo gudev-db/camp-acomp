@@ -364,7 +364,11 @@ def obter_relatorio_completo(relatorio_id):
         st.error(f"Erro ao buscar relatório: {str(e)}")
         return None
 
-def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, cliente_info=None, df_anterior=None, usuario_id=None):
+model_id = "gemini-2.0-flash"
+gemini_api_key = os.getenv("GEMINI_API_KEY")
+client = genai.Client(api_key=gemini_api_key)
+
+def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, cliente_info=None, df_anterior=None, usuario_id=None,client,gemini_api_key,model_id):
     """Gera um relatório analítico usando LLM e salva no MongoDB"""
     if not gemini_api_key:
         relatorio_completo = {
@@ -384,9 +388,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
         dados_para_llm = ""
         
         
-        model_id = "gemini-2.0-flash"
-        gemini_api_key = os.getenv("GEMINI_API_KEY")
-        client = genai.Client(api_key=gemini_api_key)
+        
         
         google_search_tool = Tool(
                                     google_search = GoogleSearch()
