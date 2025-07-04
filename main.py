@@ -366,7 +366,6 @@ def obter_relatorio_completo(relatorio_id):
 
 def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, cliente_info=None, df_anterior=None, usuario_id=None):
     """Gera um relatório analítico usando LLM e salva no MongoDB"""
-    model_id = 'gemini-2.0-flash'
     if not gemini_api_key:
         relatorio_completo = {
             "partes": [{"titulo": "Aviso", "conteudo": "🔒 Relatório avançado desabilitado. Configure a API key do Gemini para ativar esta funcionalidade."}],
@@ -381,6 +380,10 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                 "texto_completo": "# Relatório de Campanhas\n\n## Erro\n\nDados inválidos para gerar relatório"
             }
             return relatorio_completo
+
+        # Configuração inicial do cliente Gemini
+        client = genai.Client(api_key=gemini_api_key)
+        model_id = "gemini-2.0-flash"
         
         dados_para_llm = ""
         
@@ -417,8 +420,6 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
             dados_para_llm += "    * Se CTR aumentou mas Conversões caíram, pode indicar tráfego menos qualificado\n"
             dados_para_llm += "    * Se Custo por Conversão caiu e Conversões aumentaram, indica eficiência melhorada\n"
             dados_para_llm += "    * Se Impressões caíram mas Engajamentos aumentaram, pode indicar público mais segmentado\n"
-        
-        model = GenerativeModel('gemini-2.0-flash')
         
         with st.spinner("🧠 Gerando relatório avançado com IA..."):
             relatorio_completo = {
@@ -579,7 +580,10 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
             
             for titulo, prompt in prompts:
                 with st.spinner(f"Gerando {titulo.lower()}..."):
-                    response = model.generate_content(prompt)
+                    response = client.models.generate_content(
+                        model='gemini-2.0-flash',
+                        contents=prompt
+                    )
                     parte_conteudo = response.text
                     
                     texto_completo_md += f"## {titulo}\n\n{parte_conteudo}\n\n"
@@ -592,26 +596,34 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
             
             # Adicionando pesquisa de novidades em otimização de campanhas
             with st.spinner("🔍 Buscando novidades em otimização de campanhas..."):
-                google_search_tool = Tool(
-                    google_search = GoogleSearch()
-                )
-                
-                pesquisa = client.models.generate_content(
-                    model=model_id,
-                    contents="Faça uma pesquisa sobre notícias sobre novidades em otimização de campanhas",
-                    config=GenerateContentConfig(
-                        tools=[google_search_tool],
-                        response_modalities=["TEXT"],
+                try:
+                    google_search_tool = Tool(
+                        google_search=GoogleSearch()
                     )
-                )
-                
-                if pesquisa.text:
+                    
+                    pesquisa = client.models.generate_content(
+                        model=model_id,
+                        contents="Faça uma pesquisa sobre notícias sobre novidades em otimização de campanhas digitais em 2024. Inclua apenas informações relevantes e atualizadas.",
+                        config=GenerateContentConfig(
+                            tools=[google_search_tool],
+                            response_modalities=["TEXT"],
+                        )
+                    )
+                    
+                    if pesquisa.text:
+                        parte_pesquisa = {
+                            "titulo": "🔍 Novidades em Otimização de Campanhas (Pesquisa Web)",
+                            "conteudo": pesquisa.text
+                        }
+                        relatorio_completo["partes"].append(parte_pesquisa)
+                        texto_completo_md += f"## 🔍 Novidades em Otimização de Campanhas (Pesquisa Web)\n\n{pesquisa.text}\n\n"
+                except Exception as e:
+                    st.error(f"Erro na pesquisa web: {str(e)}")
                     parte_pesquisa = {
-                        "titulo": "🔍 Novidades em Otimização de Campanhas (Pesquisa Web)",
-                        "conteudo": pesquisa.text
+                        "titulo": "🔍 Novidades em Otimização de Campanhas",
+                        "conteudo": "Não foi possível realizar a pesquisa web no momento."
                     }
                     relatorio_completo["partes"].append(parte_pesquisa)
-                    texto_completo_md += f"## 🔍 Novidades em Otimização de Campanhas (Pesquisa Web)\n\n{pesquisa.text}\n\n"
             
             relatorio_completo["texto_completo"] = texto_completo_md
             
