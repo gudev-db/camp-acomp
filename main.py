@@ -366,6 +366,7 @@ def obter_relatorio_completo(relatorio_id):
 
 def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, cliente_info=None, df_anterior=None, usuario_id=None):
     """Gera um relatório analítico usando LLM e salva no MongoDB"""
+    model_id = 'gemini-2.0-flash'
     if not gemini_api_key:
         relatorio_completo = {
             "partes": [{"titulo": "Aviso", "conteudo": "🔒 Relatório avançado desabilitado. Configure a API key do Gemini para ativar esta funcionalidade."}],
