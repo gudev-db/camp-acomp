@@ -10,8 +10,6 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 import hashlib
 import time
-from google import genai
-from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
 
 # Configuração da página
 st.set_page_config(
@@ -364,11 +362,7 @@ def obter_relatorio_completo(relatorio_id):
         st.error(f"Erro ao buscar relatório: {str(e)}")
         return None
 
-model_id = "gemini-2.0-flash"
-gemini_api_key = os.getenv("GEMINI_API_KEY")
-client = genai.Client(api_key=gemini_api_key)
-
-def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, cliente_info=None, df_anterior=None, usuario_id=None,client,gemini_api_key,model_id):
+def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, cliente_info=None, df_anterior=None, usuario_id=None):
     """Gera um relatório analítico usando LLM e salva no MongoDB"""
     if not gemini_api_key:
         relatorio_completo = {
@@ -386,23 +380,6 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
             return relatorio_completo
         
         dados_para_llm = ""
-        
-        
-        
-        
-        google_search_tool = Tool(
-                                    google_search = GoogleSearch()
-                                )
-                                
-                                # Agente de pesquisa política
-        pls = client.models.generate_content(
-                                    model=model_id,
-                                    contents="Faça uma pesquisa sobre notícias sobre novidades em otimização de campanhas",
-                                    config=GenerateContentConfig(
-                                        tools=[google_search_tool],
-                                        response_modalities=["TEXT"],
-                                    )
-                                )
         
         dados_para_llm += "## Resumo Estatístico - Mês Atual:\n"
         for col in colunas_selecionadas:
