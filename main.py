@@ -113,14 +113,11 @@ if not gemini_api_key:
 
 def criar_usuario(email, senha, nome):
     """Cria um novo usuário no banco de dados"""
-    # Verifica se o usuário já existe
     if db_usuarios.find_one({"email": email}):
         return False, "Usuário já existe"
     
-    # Cria hash da senha
     senha_hash = hashlib.sha256(senha.encode()).hexdigest()
     
-    # Insere o novo usuário
     novo_usuario = {
         "email": email,
         "senha": senha_hash,
@@ -149,7 +146,6 @@ def verificar_login(email, senha):
     senha_hash = hashlib.sha256(senha.encode()).hexdigest()
     
     if usuario["senha"] == senha_hash:
-        # Atualiza último login
         db_usuarios.update_one(
             {"_id": usuario["_id"]},
             {"$set": {"ultimo_login": datetime.now()}}
@@ -161,7 +157,6 @@ def verificar_login(email, senha):
 def detectar_tipo_campanha(nome_campanha):
     """Detecta o tipo de campanha com base no nome"""
     try:
-        # Verifica se o valor é nulo ou não é string
         if pd.isna(nome_campanha) or not isinstance(nome_campanha, str):
             return 'Outros'
             
@@ -190,11 +185,9 @@ def detectar_tipo_campanha(nome_campanha):
 def carregar_dados(arquivo):
     """Carrega e prepara o arquivo CSV"""
     try:
-        # Lê o arquivo CSV com encoding apropriado
         df = pd.read_csv(arquivo, skiprows=2, encoding='utf-8')
         df = df.dropna(how='all')
         
-        # Mapeamento de colunas com problemas de encoding para nomes consistentes
         mapeamento_colunas = {
             'Status da campanha': 'Status da campanha',
             'Campanha': 'Campanha',
@@ -226,10 +219,8 @@ def carregar_dados(arquivo):
             'Taxa de conv.': 'Taxa de conversão'
         }
         
-        # Renomear colunas para nomes consistentes
         df = df.rename(columns=mapeamento_colunas)
         
-        # Converter colunas numéricas
         colunas_numericas = [
             'CPV médio', 'Interações', 'Taxa de interação', 'Custo', 'Impressões',
             'Cliques', 'Conversões', 'CTR', 'CPM médio', 'CPC médio', 
@@ -240,7 +231,6 @@ def carregar_dados(arquivo):
         
         for col in colunas_numericas:
             if col in df.columns:
-                # Remove caracteres não numéricos e converte
                 df[col] = df[col].astype(str).str.replace(',', '.').str.replace('%', '').str.replace(' ', '')
                 df[col] = pd.to_numeric(df[col], errors='coerce')
         
@@ -252,13 +242,11 @@ def carregar_dados(arquivo):
 def detectar_etapa_funil(nome_campanha):
     """Detecta a etapa do funil com base no nome da campanha"""
     try:
-        # Verifica se o valor é nulo ou não é string
         if pd.isna(nome_campanha) or not isinstance(nome_campanha, str):
             return 'Outros'
             
         nome = nome_campanha.lower()
         
-        # Palavras-chave para cada etapa
         topo_keywords = ['awareness', 'consciencia', 'alcance', 'reach', 'branding', 'marca']
         meio_keywords = ['consideracao', 'consideração', 'consideration', 'engajamento', 'engagement', 'video', 'vídeo']
         fundo_keywords = ['conversao', 'conversão', 'conversion', 'venda', 'sales', 'lead', 'performance', 'pmax']
@@ -275,7 +263,6 @@ def detectar_etapa_funil(nome_campanha):
         print(f"Erro ao detectar etapa do funil: {str(e)}")
         return 'Outros'
 
-# Métricas por etapa do funil
 METRICAS_POR_ETAPA = {
     'Topo': ['Impressões', 'Alcance', 'Custo', 'CPM médio', 'Cliques', 'CTR'],
     'Meio': ['Impressões', 'Cliques', 'CTR', 'CPC médio', 'CPM médio', 'Custo'],
@@ -317,23 +304,18 @@ def criar_grafico_comparativo(dados_atual, dados_anterior, metrica):
     try:
         plt.figure(figsize=(10, 6))
         
-        # Valores para comparação
         valores = {
             'Mês Atual': dados_atual[metrica].mean(),
             'Mês Anterior': dados_anterior[metrica].mean()
         }
         
-        # Cálculo da variação percentual
         variacao = ((valores['Mês Atual'] - valores['Mês Anterior']) / valores['Mês Anterior']) * 100
         
-        # Gráfico de barras
         plt.bar(valores.keys(), valores.values(), color=['#4CAF50', '#2196F3'])
         
-        # Adiciona rótulos com os valores
         for i, v in enumerate(valores.values()):
             plt.text(i, v, f"{v:,.2f}", ha='center', va='bottom')
         
-        # Configurações do gráfico
         plt.title(f"Comparação: {metrica}\nVariação: {variacao:.1f}%")
         plt.ylabel('Valor Médio')
         plt.grid(axis='y', linestyle='--', alpha=0.7)
@@ -383,35 +365,32 @@ def obter_relatorio_completo(relatorio_id):
 def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, cliente_info=None, df_anterior=None, usuario_id=None):
     """Gera um relatório analítico usando LLM e salva no MongoDB"""
     if not gemini_api_key:
-        return {
+        relatorio_completo = {
             "partes": [{"titulo": "Aviso", "conteudo": "🔒 Relatório avançado desabilitado. Configure a API key do Gemini para ativar esta funcionalidade."}],
-            "texto_completo": "🔒 Relatório avançado desabilitado. Configure a API key do Gemini para ativar esta funcionalidade."
+            "texto_completo": "# Relatório de Campanhas\n\n🔒 Relatório avançado desabilitado. Configure a API key do Gemini para ativar esta funcionalidade."
         }
+        return relatorio_completo
     
     try:
-        # Verifica se temos um DataFrame válido
         if not isinstance(df, pd.DataFrame) or df.empty:
-            return {
+            relatorio_completo = {
                 "partes": [{"titulo": "Erro", "conteudo": "Dados inválidos para gerar relatório"}],
-                "texto_completo": "Dados inválidos para gerar relatório"
+                "texto_completo": "# Relatório de Campanhas\n\n## Erro\n\nDados inválidos para gerar relatório"
             }
+            return relatorio_completo
         
-        # Prepara os dados para o LLM
         dados_para_llm = ""
         
-        # Resumo estatístico do período atual
         dados_para_llm += "## Resumo Estatístico - Mês Atual:\n"
         for col in colunas_selecionadas:
             if col in metricas:
                 stats = metricas[col]
                 dados_para_llm += f"- {col}: Média={stats['média']:.2f}, Mediana={stats['mediana']:.2f}, Min={stats['min']:.2f}, Max={stats['max']:.2f}\n"
         
-        # Se tivermos dados do mês anterior, adicionamos análise comparativa
         if df_anterior is not None and isinstance(df_anterior, pd.DataFrame) and not df_anterior.empty:
             metricas_anterior = calcular_metricas(df_anterior)
             dados_para_llm += "\n## Análise Comparativa Mensal:\n"
             
-            # Calcula variações para cada métrica
             for col in colunas_selecionadas:
                 if col in metricas and col in metricas_anterior:
                     media_atual = metricas[col]['média']
@@ -421,46 +400,31 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     dados_para_llm += (f"- {col}: {media_atual:.2f} (Mês Atual) vs {media_anterior:.2f} (Mês Anterior) → "
                                     f"{'↑' if variacao > 0 else '↓'} {abs(variacao):.1f}%\n")
         
-        # Top e bottom performers
         dados_para_llm += "\n## Melhores Campanhas - Mês Atual:\n"
-        for col in colunas_selecionadas[:10]:  # Limita a 10 métricas para não ficar muito longo
+        for col in colunas_selecionadas[:10]:
             if col in df.columns and pd.api.types.is_numeric_dtype(df[col]):
                 top3 = df.nlargest(3, col)[['Campanha', col]]
                 dados_para_llm += f"- {col}:\n"
                 for _, row in top3.iterrows():
                     dados_para_llm += f"  - {row['Campanha']}: {row[col]:.2f}\n"
         
-        # Análise de correlação entre métricas (quando temos ambos períodos)
         if df_anterior is not None and isinstance(df_anterior, pd.DataFrame) and not df_anterior.empty:
             dados_para_llm += "\n## Insights de Correlação:\n"
-            dados_para_llm += "- Comparação automática entre variações de métricas:\n"
-            
-            # Calcula variações percentuais para todas as métricas
-            variacoes = {}
-            for col in colunas_selecionadas:
-                if col in metricas and col in metricas_anterior:
-                    media_atual = metricas[col]['média']
-                    media_anterior = metricas_anterior[col]['média']
-                    variacoes[col] = ((media_atual - media_anterior) / media_anterior) * 100 if media_anterior != 0 else 0
-            
-            # Adiciona exemplos de insights combinados
             dados_para_llm += "  - Exemplo de análise combinada que será gerada pelo LLM:\n"
             dados_para_llm += "    * Se CTR aumentou mas Conversões caíram, pode indicar tráfego menos qualificado\n"
             dados_para_llm += "    * Se Custo por Conversão caiu e Conversões aumentaram, indica eficiência melhorada\n"
             dados_para_llm += "    * Se Impressões caíram mas Engajamentos aumentaram, pode indicar público mais segmentado\n"
         
-        # Inicializa o modelo Gemini
         model = GenerativeModel('gemini-2.0-flash')
         
-        # Gera o conteúdo com o Gemini
         with st.spinner("🧠 Gerando relatório avançado com IA..."):
-            # Dicionário para armazenar todas as partes do relatório
             relatorio_completo = {
                 "partes": [],
-                "texto_completo": ""
+                "texto_completo": "# Relatório de Campanhas\n\n"
             }
             
-            # Gera cada parte do relatório
+            texto_completo_md = "# Relatório de Campanhas\n\n"
+            
             prompts = []
             if tipo_relatorio == "técnico":
                 prompts = [
@@ -610,18 +574,21 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     """)
                 ]
             
-            # Gera cada parte do relatório
             for titulo, prompt in prompts:
                 with st.spinner(f"Gerando {titulo.lower()}..."):
                     response = model.generate_content(prompt)
+                    parte_conteudo = response.text
+                    
+                    texto_completo_md += f"## {titulo}\n\n{parte_conteudo}\n\n"
+                    
                     parte_relatorio = {
                         "titulo": titulo,
-                        "conteudo": response.text
+                        "conteudo": parte_conteudo
                     }
                     relatorio_completo["partes"].append(parte_relatorio)
-                    relatorio_completo["texto_completo"] += f"\n\n## {titulo}\n\n{response.text}"
             
-            # Prepara os dados para salvar no MongoDB
+            relatorio_completo["texto_completo"] = texto_completo_md
+            
             relatorio_data = {
                 "tipo": tipo_relatorio,
                 "partes": relatorio_completo["partes"],
@@ -633,7 +600,6 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                 "comparativo_mensal": df_anterior is not None
             }
             
-            # Salva no MongoDB
             relatorio_id = salvar_relatorio_mongodb(relatorio_data, usuario_id)
             if relatorio_id:
                 st.success("✅ Relatório salvo no banco de dados com sucesso!")
@@ -641,9 +607,10 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
             return relatorio_completo
         
     except Exception as e:
+        error_msg = f"Erro ao gerar relatório: {str(e)}"
         return {
-            "partes": [{"titulo": "Erro", "conteudo": f"Erro ao gerar relatório: {str(e)}"}],
-            "texto_completo": f"Erro ao gerar relatório: {str(e)}"
+            "partes": [{"titulo": "Erro", "conteudo": error_msg}],
+            "texto_completo": f"# Relatório de Campanhas\n\n## Erro\n\n{error_msg}"
         }
 
 # Sistema de Autenticação ============================================
@@ -693,7 +660,6 @@ def mostrar_app_principal():
     """Mostra o aplicativo principal após o login"""
     usuario = st.session_state.get("usuario", {})
     
-    # Barra lateral com informações do usuário
     with st.sidebar:
         st.markdown(f"### 👤 {usuario.get('nome', 'Usuário')}")
         st.markdown(f"✉️ {usuario.get('email', '')}")
@@ -703,19 +669,15 @@ def mostrar_app_principal():
             del st.session_state["autenticado"]
             st.rerun()
     
-    # Título principal
     st.title("📊 Analytics Avançado de Campanhas Digitais")
     
-    # Sessão para armazenar os dados carregados
     if 'dados_atual' not in st.session_state:
         st.session_state.dados_atual = None
         st.session_state.dados_anterior = None
     
-    # Abas principais
     tab_analise, tab_relatorios = st.tabs(["📈 Análise de Campanhas", "🗂 Meus Relatórios"])
     
     with tab_analise:
-        # Seção de upload de arquivos e informações do cliente
         col1, col2 = st.columns(2)
         
         with col1:
@@ -728,7 +690,6 @@ def mostrar_app_principal():
             if arquivo_atual:
                 df_atual = carregar_dados(arquivo_atual)
                 if df_atual is not None:
-                    # Adiciona colunas de tipo detectado e etapa do funil
                     df_atual['Tipo Detectado'] = df_atual['Campanha'].apply(detectar_tipo_campanha)
                     df_atual['Etapa Funil'] = df_atual['Campanha'].apply(detectar_etapa_funil)
                     st.session_state.dados_atual = df_atual
@@ -744,13 +705,11 @@ def mostrar_app_principal():
             if arquivo_anterior:
                 df_anterior = carregar_dados(arquivo_anterior)
                 if df_anterior is not None:
-                    # Adiciona colunas de tipo detectado e etapa do funil
                     df_anterior['Tipo Detectado'] = df_anterior['Campanha'].apply(detectar_tipo_campanha)
                     df_anterior['Etapa Funil'] = df_anterior['Campanha'].apply(detectar_etapa_funil)
                     st.session_state.dados_anterior = df_anterior
                     st.success("✅ Dados do mês anterior carregados com sucesso!")
         
-        # Seção de informações do cliente
         with st.expander("ℹ️ Informações do Cliente (Opcional)"):
             cliente_nome = st.text_input("Nome do Cliente")
             cliente_id = st.text_input("ID do Cliente (se aplicável)")
@@ -762,7 +721,6 @@ def mostrar_app_principal():
                 "tags": [tag.strip() for tag in cliente_tags.split(",")] if cliente_tags else []
             }
         
-        # Verifica se temos dados para análise
         if st.session_state.dados_atual is not None:
             df = st.session_state.dados_atual
             metricas = calcular_metricas(df)
@@ -771,7 +729,6 @@ def mostrar_app_principal():
             with st.sidebar:
                 st.header("🔧 Configurações de Análise")
                 
-                # Filtro por etapa do funil
                 etapas_disponiveis = sorted(df['Etapa Funil'].unique()) if 'Etapa Funil' in df.columns else []
                 etapas_funil = st.multiselect(
                     "Etapa do Funil",
@@ -779,25 +736,20 @@ def mostrar_app_principal():
                     default=etapas_disponiveis
                 )
                 
-                # Seleciona métricas baseadas na etapa do funil
                 metricas_selecionadas = []
                 for etapa in etapas_funil:
                     metricas_selecionadas.extend(METRICAS_POR_ETAPA.get(etapa, []))
                 
-                # Remove duplicatas e mantém apenas métricas existentes no dataframe
                 metricas_selecionadas = [m for m in list(set(metricas_selecionadas)) if m in df.columns]
                 
-                # Tipo de relatório
                 tipo_relatorio = st.radio(
                     "Tipo de relatório",
                     options=["técnico", "gerencial"],
                     index=0
                 )
                 
-                # Filtros adicionais
                 st.subheader("Filtros Adicionais")
                 
-                # Filtro por tipo detectado
                 tipos_detectados = sorted(df['Tipo Detectado'].unique()) if 'Tipo Detectado' in df.columns else []
                 tipos_selecionados = st.multiselect(
                     "Tipo de Campanha (detectado pelo nome)",
@@ -805,7 +757,6 @@ def mostrar_app_principal():
                     default=tipos_detectados
                 )
                 
-                # Filtro por tipo de campanha
                 if 'Tipo de campanha' in df.columns:
                     tipos_campanha = sorted([str(t) for t in df['Tipo de campanha'].unique() if pd.notna(t)])
                 else:
@@ -818,7 +769,6 @@ def mostrar_app_principal():
                     default=tipos_campanha if tipos_campanha else None
                 )
                 
-                # Filtro por status da campanha
                 status_disponiveis = sorted(df['Status da campanha'].unique()) if 'Status da campanha' in df.columns else []
                 status_campanha = st.multiselect(
                     "Status da Campanha",
@@ -828,7 +778,6 @@ def mostrar_app_principal():
                 
                 mostrar_boxplots = st.checkbox("Mostrar boxplots das métricas")
             
-            # Aplica filtros
             df_filtrado = df[
                 (df['Etapa Funil'].isin(etapas_funil)) &
                 (df['Tipo Detectado'].isin(tipos_selecionados)) &
@@ -836,11 +785,9 @@ def mostrar_app_principal():
                 (df['Status da campanha'].isin(status_campanha))
             ].copy()
             
-            # Contagem correta de campanhas ativas e pausadas
             contagem_ativas = len(df_filtrado[df_filtrado['Status da campanha'] == 'Ativada'])
             contagem_pausadas = len(df_filtrado[df_filtrado['Status da campanha'] == 'Pausada'])
             
-            # Sub-abas de análise
             tab1, tab2, tab3, tab4 = st.tabs(["📋 Visão Geral", "📊 Análise por Métrica", "🔄 Comparativo Mensal", "🧠 Relatório Avançado"])
             
             with tab1:
@@ -851,7 +798,6 @@ def mostrar_app_principal():
                 col2.metric("Campanhas Ativas", contagem_ativas)
                 col3.metric("Campanhas Pausadas", contagem_pausadas)
                 
-                # Mostra distribuição por etapa do funil
                 st.subheader("Distribuição por Etapa do Funil")
                 fig, ax = plt.subplots(figsize=(8, 4))
                 df_filtrado['Etapa Funil'].value_counts().plot(kind='bar', ax=ax, color=['#4CAF50', '#2196F3', '#FF9800'])
@@ -860,7 +806,6 @@ def mostrar_app_principal():
                 plt.ylabel('Número de Campanhas')
                 st.pyplot(fig)
                 
-                # Mostra dataframe com as métricas relevantes
                 st.dataframe(df_filtrado[['Campanha', 'Etapa Funil', 'Tipo Detectado', 'Status da campanha'] + metricas_selecionadas], 
                             use_container_width=True)
             
@@ -873,7 +818,6 @@ def mostrar_app_principal():
                 )
                 
                 if metrica_selecionada:
-                    # Verifica se a métrica é numérica
                     if pd.api.types.is_numeric_dtype(df_filtrado[metrica_selecionada]):
                         stats = {
                             'média': df_filtrado[metrica_selecionada].mean(),
@@ -906,7 +850,6 @@ def mostrar_app_principal():
                 st.subheader("Comparativo Mensal")
                 
                 if st.session_state.dados_anterior is not None:
-                    # Aplica os mesmos filtros ao mês anterior
                     df_anterior_filtrado = st.session_state.dados_anterior[
                         (st.session_state.dados_anterior['Etapa Funil'].isin(etapas_funil)) &
                         (st.session_state.dados_anterior['Tipo Detectado'].isin(tipos_selecionados)) &
@@ -923,10 +866,8 @@ def mostrar_app_principal():
                     if metrica_comparacao and pd.api.types.is_numeric_dtype(df_filtrado[metrica_comparacao]):
                         variacao = criar_grafico_comparativo(df_filtrado, df_anterior_filtrado, metrica_comparacao)
                         
-                        # Tabela comparativa detalhada
                         st.subheader("Análise Detalhada da Comparação")
                         
-                        # Calcula estatísticas para ambos os períodos
                         stats_atual = {
                             'Média': df_filtrado[metrica_comparacao].mean(),
                             'Mediana': df_filtrado[metrica_comparacao].median(),
@@ -943,17 +884,14 @@ def mostrar_app_principal():
                             'Desvio Padrão': df_anterior_filtrado[metrica_comparacao].std()
                         }
                         
-                        # Cria DataFrame comparativo
                         df_comparativo = pd.DataFrame({
                             'Mês Atual': stats_atual,
                             'Mês Anterior': stats_anterior
                         }).T
                         
-                        # Calcula variações
                         df_comparativo['Variação (%)'] = ((df_comparativo.loc['Mês Atual'] - df_comparativo.loc['Mês Anterior']) / 
                                                         df_comparativo.loc['Mês Anterior']) * 100
                         
-                        # Formatação condicional para a variação
                         def color_variation(val):
                             color = 'red' if val < 0 else 'green' if val > 0 else 'gray'
                             return f'color: {color}'
@@ -978,24 +916,23 @@ def mostrar_app_principal():
                     relatorio = gerar_relatorio_llm(
                         df_filtrado, 
                         metricas, 
-                        metricas_selecionadas,  # Usa apenas as métricas relevantes para o funil
+                        metricas_selecionadas,
                         tipo_relatorio, 
                         cliente_info,
                         st.session_state.dados_anterior if st.session_state.dados_anterior is not None else None,
                         usuario.get("_id") if usuario else None
                     )
                     
-                    # Exibe cada parte do relatório em seções expansíveis
                     for parte in relatorio["partes"]:
                         with st.expander(f"**{parte['titulo']}**"):
                             st.markdown(parte["conteudo"])
                     
-                    # Botão para download
                     st.download_button(
-                        label="⬇️ Baixar Relatório Completo",
+                        label="⬇️ Baixar Relatório Completo (Markdown)",
                         data=relatorio["texto_completo"],
-                        file_name=f"relatorio_{tipo_relatorio}_campanhas.md",
-                        mime="text/markdown"
+                        file_name=f"relatorio_campanhas_{datetime.now().strftime('%Y%m%d_%H%M')}.md",
+                        mime="text/markdown",
+                        key="download_relatorio_md"
                     )
         else:
             st.info("ℹ️ Por favor, carregue pelo menos o relatório do mês atual para começar a análise")
@@ -1003,7 +940,6 @@ def mostrar_app_principal():
     with tab_relatorios:
         st.subheader("Meus Relatórios Gerados")
         
-        # Obtém os relatórios do usuário
         relatorios = obter_relatorios_usuario(usuario.get("_id")) if usuario else []
         
         if relatorios:
@@ -1011,7 +947,6 @@ def mostrar_app_principal():
             
             for rel in relatorios:
                 with st.expander(f"📄 {rel.get('cliente', {}).get('nome', 'Sem nome')} - {rel.get('tipo', 'Sem tipo')} - {rel['data_geracao'].strftime('%d/%m/%Y %H:%M')}"):
-                    # Botão para visualizar o relatório completo
                     if st.button("🔍 Ver Relatório Completo", key=f"ver_{rel['_id']}"):
                         relatorio_completo = obter_relatorio_completo(rel["_id"])
                         if relatorio_completo:
@@ -1019,7 +954,6 @@ def mostrar_app_principal():
                                 st.markdown(f"### {parte['titulo']}")
                                 st.markdown(parte['conteudo'])
                     
-                    # Botão para download
                     texto_completo = "\n\n".join([f"## {p['titulo']}\n\n{p['conteudo']}" for p in rel.get("partes", [])])
                     st.download_button(
                         label="⬇️ Baixar Relatório",
@@ -1029,7 +963,6 @@ def mostrar_app_principal():
                         key=f"download_{rel['_id']}"
                     )
                     
-                    # Botão para excluir
                     if st.button("🗑️ Excluir", key=f"excluir_{rel['_id']}"):
                         db_relatorios.update_one(
                             {"_id": rel["_id"]},
