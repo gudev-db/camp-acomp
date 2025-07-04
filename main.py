@@ -603,7 +603,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     
                     pesquisa = client.models.generate_content(
                         model=model_id,
-                        contents="Faça uma pesquisa sobre notícias sobre novidades em otimização de campanhas digitais em 2024. Inclua apenas informações relevantes e atualizadas.",
+                        contents="Faça uma pesquisa sobre notícias sobre novidades em otimização de campanhas digitais. Inclua apenas informações relevantes e atualizadas.",
                         config=GenerateContentConfig(
                             tools=[google_search_tool],
                             response_modalities=["TEXT"],
