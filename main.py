@@ -10,6 +10,8 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 import hashlib
 import time
+from google import genai
+from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
 
 # Configuração da página
 st.set_page_config(
@@ -380,6 +382,25 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
             return relatorio_completo
         
         dados_para_llm = ""
+        
+        
+        model_id = "gemini-2.0-flash"
+        gemini_api_key = os.getenv("GEMINI_API_KEY")
+        client = genai.Client(api_key=gemini_api_key)
+        
+        google_search_tool = Tool(
+                                    google_search = GoogleSearch()
+                                )
+                                
+                                # Agente de pesquisa política
+        pls = client.models.generate_content(
+                                    model=model_id,
+                                    contents="Faça uma pesquisa sobre notícias sobre novidades em otimização de campanhas",
+                                    config=GenerateContentConfig(
+                                        tools=[google_search_tool],
+                                        response_modalities=["TEXT"],
+                                    )
+                                )
         
         dados_para_llm += "## Resumo Estatístico - Mês Atual:\n"
         for col in colunas_selecionadas:
