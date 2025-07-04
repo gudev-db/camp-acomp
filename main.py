@@ -10,6 +10,8 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 import hashlib
 import time
+from google import genai
+from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
 
 # Configuração da página
 st.set_page_config(
@@ -586,6 +588,29 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                         "conteudo": parte_conteudo
                     }
                     relatorio_completo["partes"].append(parte_relatorio)
+            
+            # Adicionando pesquisa de novidades em otimização de campanhas
+            with st.spinner("🔍 Buscando novidades em otimização de campanhas..."):
+                google_search_tool = Tool(
+                    google_search = GoogleSearch()
+                )
+                
+                pesquisa = client.models.generate_content(
+                    model=model_id,
+                    contents="Faça uma pesquisa sobre notícias sobre novidades em otimização de campanhas",
+                    config=GenerateContentConfig(
+                        tools=[google_search_tool],
+                        response_modalities=["TEXT"],
+                    )
+                )
+                
+                if pesquisa.text:
+                    parte_pesquisa = {
+                        "titulo": "🔍 Novidades em Otimização de Campanhas (Pesquisa Web)",
+                        "conteudo": pesquisa.text
+                    }
+                    relatorio_completo["partes"].append(parte_pesquisa)
+                    texto_completo_md += f"## 🔍 Novidades em Otimização de Campanhas (Pesquisa Web)\n\n{pesquisa.text}\n\n"
             
             relatorio_completo["texto_completo"] = texto_completo_md
             
