@@ -82,6 +82,20 @@ rel_metrica = '''
             Frequência (calculada: Impressões/Únicos) - Número médio de visualizações por usuário  
             Engajamentos - Interações com o conteúdo  
             
+            Tipo: 📱 Meta (Facebook/Instagram) -> Atenção para as métricas:
+            *O que é:* Anúncios no ecossistema Meta (Facebook, Instagram, etc.).  
+            *Objetivos:* Varia conforme objetivo da campanha (tráfego, conversões, engajamento, etc.).  
+            *Métricas-chave:*
+            Resultados - Principal métrica (varia conforme objetivo)  
+            Custo por resultado - Eficiência na entrega  
+            Alcance - Pessoas únicas que viram o anúncio  
+            Impressões - Número total de visualizações  
+            CTR (taxa de cliques no link) - Engajamento com o anúncio  
+            Frequência - Média de visualizações por pessoa  
+            CPM (custo por 1.000 impressões) - Custo de alcance  
+            Engajamentos com o post - Interações com o conteúdo  
+            ThruPlays - Visualizações completas de vídeos  
+            
             📊 Métricas Universais Importantes
             (Relevantes para todos os tipos)
             
@@ -178,14 +192,16 @@ def detectar_tipo_campanha(nome_campanha):
             return 'Discovery'
         elif 'pmax' in nome or 'performance max' in nome:
             return 'Performance Max'
+        elif 'meta' in nome or 'facebook' in nome or 'instagram' in nome or 'social' in nome:
+            return 'Meta'
         else:
             return 'Outros'
     except Exception as e:
         print(f"Erro ao detectar tipo de campanha: {str(e)}")
         return 'Outros'
 
-def carregar_dados(arquivo):
-    """Carrega e prepara o arquivo CSV"""
+def carregar_dados_google_ads(arquivo):
+    """Carrega e prepara o arquivo CSV do Google Ads"""
     try:
         df = pd.read_csv(arquivo, skiprows=2, encoding='utf-8')
         df = df.dropna(how='all')
@@ -238,7 +254,58 @@ def carregar_dados(arquivo):
         
         return df
     except Exception as e:
-        st.error(f"Erro ao carregar arquivo: {str(e)}")
+        st.error(f"Erro ao carregar arquivo do Google Ads: {str(e)}")
+        return None
+
+def carregar_dados_meta(arquivo):
+    """Carrega e prepara o arquivo CSV do Meta (Facebook/Instagram)"""
+    try:
+        df = pd.read_csv(arquivo, encoding='utf-8')
+        df = df.dropna(how='all')
+        
+        mapeamento_colunas = {
+            'InÃ­cio dos relatÃ³rios': 'Data início',
+            'TÃ©rmino dos relatÃ³rios': 'Data término',
+            'Nome da campanha': 'Campanha',
+            'VeiculaÃ§Ã£o da campanha': 'Status da campanha',
+            'OrÃ§amento do conjunto de anÃºncios': 'Orçamento',
+            'Tipo de orÃ§amento do conjunto de anÃºncios': 'Tipo de orçamento',
+            'ConfiguraÃ§Ã£o de atribuiÃ§Ã£o': 'Atribuição',
+            'Resultados': 'Resultados',
+            'Indicador de resultados': 'Tipo de resultado',
+            'Alcance': 'Alcance',
+            'ImpressÃµes': 'Impressões',
+            'Custo por resultados': 'Custo por resultado',
+            'Valor usado (BRL)': 'Custo',
+            'TÃ©rmino': 'Frequência',
+            'CTR (taxa de cliques no link)': 'CTR',
+            'Engajamentos com o post': 'Engajamentos',
+            'Engajamento com a PÃ¡gina': 'Engajamento com a página',
+            'Cliques no link': 'Cliques',
+            'FrequÃªncia': 'Frequência',
+            'Cliques (todos)': 'Cliques totais',
+            'VisualizaÃ§Ãµes': 'Visualizações',
+            'ThruPlays': 'ThruPlays',
+            'CPM (custo por 1.000 impressÃµes) (BRL)': 'CPM'
+        }
+        
+        df = df.rename(columns=mapeamento_colunas)
+        
+        colunas_numericas = [
+            'Orçamento', 'Resultados', 'Alcance', 'Impressões', 
+            'Custo por resultado', 'Custo', 'CTR', 'Engajamentos',
+            'Engajamento com a página', 'Cliques', 'Frequência',
+            'Cliques totais', 'Visualizações', 'ThruPlays', 'CPM'
+        ]
+        
+        for col in colunas_numericas:
+            if col in df.columns:
+                df[col] = df[col].astype(str).str.replace(',', '.').str.replace('%', '').str.replace(' ', '')
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        return df
+    except Exception as e:
+        st.error(f"Erro ao carregar arquivo do Meta: {str(e)}")
         return None
 
 def detectar_etapa_funil(nome_campanha):
@@ -249,9 +316,9 @@ def detectar_etapa_funil(nome_campanha):
             
         nome = nome_campanha.lower()
         
-        topo_keywords = ['awareness', 'consciencia', 'alcance', 'reach', 'branding', 'marca']
-        meio_keywords = ['consideracao', 'consideração', 'consideration', 'engajamento', 'engagement', 'video', 'vídeo']
-        fundo_keywords = ['conversao', 'conversão', 'conversion', 'venda', 'sales', 'lead', 'performance', 'pmax']
+        topo_keywords = ['awareness', 'consciencia', 'alcance', 'reach', 'branding', 'marca', 'reconhecimento']
+        meio_keywords = ['consideracao', 'consideração', 'consideration', 'engajamento', 'engagement', 'video', 'vídeo', 'traffic', 'tráfego']
+        fundo_keywords = ['conversao', 'conversão', 'conversion', 'venda', 'sales', 'lead', 'performance', 'pmax', 'contato']
         
         if any(keyword in nome for keyword in topo_keywords):
             return 'Topo'
@@ -266,9 +333,9 @@ def detectar_etapa_funil(nome_campanha):
         return 'Outros'
 
 METRICAS_POR_ETAPA = {
-    'Topo': ['Impressões', 'Alcance', 'Custo', 'CPM médio', 'Cliques', 'CTR'],
-    'Meio': ['Impressões', 'Cliques', 'CTR', 'CPC médio', 'CPM médio', 'Custo'],
-    'Fundo': ['Impressões', 'Cliques', 'Conversões', 'CTR', 'CPM médio', 'CPC médio', 'Custo por conversão']
+    'Topo': ['Impressões', 'Alcance', 'Custo', 'CPM', 'Cliques', 'CTR', 'Engajamentos', 'Frequência'],
+    'Meio': ['Impressões', 'Cliques', 'CTR', 'CPM', 'Custo', 'Engajamentos', 'Visualizações', 'ThruPlays'],
+    'Fundo': ['Impressões', 'Cliques', 'Resultados', 'CTR', 'CPM', 'Custo por resultado', 'Custo']
 }
 
 def calcular_metricas(df):
@@ -712,21 +779,36 @@ def mostrar_app_principal():
     if 'dados_atual' not in st.session_state:
         st.session_state.dados_atual = None
         st.session_state.dados_anterior = None
+        st.session_state.tipo_plataforma = None
     
     tab_analise, tab_relatorios = st.tabs(["📈 Análise de Campanhas", "🗂 Meus Relatórios"])
     
     with tab_analise:
+        st.subheader("Selecione a Plataforma")
+        tipo_plataforma = st.radio(
+            "Plataforma de Anúncios",
+            options=["Google Ads", "Meta (Facebook/Instagram)"],
+            index=0,
+            key="plataforma_selecionada"
+        )
+        
+        st.session_state.tipo_plataforma = tipo_plataforma
+        
         col1, col2 = st.columns(2)
         
         with col1:
             st.subheader("📅 Mês Atual (Mais Recente)")
             arquivo_atual = st.file_uploader(
-                "Carregue o relatório do mês atual",
+                f"Carregue o relatório do mês atual ({tipo_plataforma})",
                 type=["csv"],
                 key="uploader_atual"
             )
             if arquivo_atual:
-                df_atual = carregar_dados(arquivo_atual)
+                if tipo_plataforma == "Google Ads":
+                    df_atual = carregar_dados_google_ads(arquivo_atual)
+                else:
+                    df_atual = carregar_dados_meta(arquivo_atual)
+                
                 if df_atual is not None:
                     df_atual['Tipo Detectado'] = df_atual['Campanha'].apply(detectar_tipo_campanha)
                     df_atual['Etapa Funil'] = df_atual['Campanha'].apply(detectar_etapa_funil)
@@ -736,12 +818,16 @@ def mostrar_app_principal():
         with col2:
             st.subheader("🗓️ Mês Anterior")
             arquivo_anterior = st.file_uploader(
-                "Carregue o relatório do mês anterior",
+                f"Carregue o relatório do mês anterior ({tipo_plataforma})",
                 type=["csv"],
                 key="uploader_anterior"
             )
             if arquivo_anterior:
-                df_anterior = carregar_dados(arquivo_anterior)
+                if tipo_plataforma == "Google Ads":
+                    df_anterior = carregar_dados_google_ads(arquivo_anterior)
+                else:
+                    df_anterior = carregar_dados_meta(arquivo_anterior)
+                
                 if df_anterior is not None:
                     df_anterior['Tipo Detectado'] = df_anterior['Campanha'].apply(detectar_tipo_campanha)
                     df_anterior['Etapa Funil'] = df_anterior['Campanha'].apply(detectar_etapa_funil)
@@ -816,15 +902,23 @@ def mostrar_app_principal():
                 
                 mostrar_boxplots = st.checkbox("Mostrar boxplots das métricas")
             
-            df_filtrado = df[
-                (df['Etapa Funil'].isin(etapas_funil)) &
-                (df['Tipo Detectado'].isin(tipos_selecionados)) &
-                (df['Tipo de campanha'].isin(tipo_campanha)) &
-                (df['Status da campanha'].isin(status_campanha))
-            ].copy()
+            df_filtrado = df.copy()
             
-            contagem_ativas = len(df_filtrado[df_filtrado['Status da campanha'] == 'Ativada'])
-            contagem_pausadas = len(df_filtrado[df_filtrado['Status da campanha'] == 'Pausada'])
+            # Aplicar filtros
+            if 'Etapa Funil' in df.columns:
+                df_filtrado = df_filtrado[df_filtrado['Etapa Funil'].isin(etapas_funil)]
+            
+            if 'Tipo Detectado' in df.columns:
+                df_filtrado = df_filtrado[df_filtrado['Tipo Detectado'].isin(tipos_selecionados)]
+            
+            if 'Tipo de campanha' in df.columns and tipo_campanha:
+                df_filtrado = df_filtrado[df_filtrado['Tipo de campanha'].isin(tipo_campanha)]
+            
+            if 'Status da campanha' in df.columns and status_campanha:
+                df_filtrado = df_filtrado[df_filtrado['Status da campanha'].isin(status_campanha)]
+            
+            contagem_ativas = len(df_filtrado[df_filtrado['Status da campanha'] == 'Ativada']) if 'Status da campanha' in df_filtrado.columns else 0
+            contagem_pausadas = len(df_filtrado[df_filtrado['Status da campanha'] == 'Pausada']) if 'Status da campanha' in df_filtrado.columns else 0
             
             tab1, tab2, tab3, tab4 = st.tabs(["📋 Visão Geral", "📊 Análise por Métrica", "🔄 Comparativo Mensal", "🧠 Relatório Avançado"])
             
@@ -833,19 +927,31 @@ def mostrar_app_principal():
                 
                 col1, col2, col3 = st.columns(3)
                 col1.metric("Total de Campanhas", len(df_filtrado))
-                col2.metric("Campanhas Ativas", contagem_ativas)
-                col3.metric("Campanhas Pausadas", contagem_pausadas)
                 
-                st.subheader("Distribuição por Etapa do Funil")
-                fig, ax = plt.subplots(figsize=(8, 4))
-                df_filtrado['Etapa Funil'].value_counts().plot(kind='bar', ax=ax, color=['#4CAF50', '#2196F3', '#FF9800'])
-                plt.title('Campanhas por Etapa do Funil')
-                plt.xlabel('Etapa do Funil')
-                plt.ylabel('Número de Campanhas')
-                st.pyplot(fig)
+                if 'Status da campanha' in df_filtrado.columns:
+                    col2.metric("Campanhas Ativas", contagem_ativas)
+                    col3.metric("Campanhas Pausadas", contagem_pausadas)
                 
-                st.dataframe(df_filtrado[['Campanha', 'Etapa Funil', 'Tipo Detectado', 'Status da campanha'] + metricas_selecionadas], 
-                            use_container_width=True)
+                if 'Etapa Funil' in df_filtrado.columns:
+                    st.subheader("Distribuição por Etapa do Funil")
+                    fig, ax = plt.subplots(figsize=(8, 4))
+                    df_filtrado['Etapa Funil'].value_counts().plot(kind='bar', ax=ax, color=['#4CAF50', '#2196F3', '#FF9800'])
+                    plt.title('Campanhas por Etapa do Funil')
+                    plt.xlabel('Etapa do Funil')
+                    plt.ylabel('Número de Campanhas')
+                    st.pyplot(fig)
+                
+                colunas_mostrar = ['Campanha']
+                if 'Etapa Funil' in df_filtrado.columns:
+                    colunas_mostrar.append('Etapa Funil')
+                if 'Tipo Detectado' in df_filtrado.columns:
+                    colunas_mostrar.append('Tipo Detectado')
+                if 'Status da campanha' in df_filtrado.columns:
+                    colunas_mostrar.append('Status da campanha')
+                
+                colunas_mostrar.extend(metricas_selecionadas)
+                
+                st.dataframe(df_filtrado[colunas_mostrar], use_container_width=True)
             
             with tab2:
                 st.subheader("Análise Detalhada por Métrica - Mês Atual")
@@ -888,12 +994,20 @@ def mostrar_app_principal():
                 st.subheader("Comparativo Mensal")
                 
                 if st.session_state.dados_anterior is not None:
-                    df_anterior_filtrado = st.session_state.dados_anterior[
-                        (st.session_state.dados_anterior['Etapa Funil'].isin(etapas_funil)) &
-                        (st.session_state.dados_anterior['Tipo Detectado'].isin(tipos_selecionados)) &
-                        (st.session_state.dados_anterior['Tipo de campanha'].isin(tipo_campanha)) &
-                        (st.session_state.dados_anterior['Status da campanha'].isin(status_campanha))
-                    ]
+                    df_anterior_filtrado = st.session_state.dados_anterior.copy()
+                    
+                    # Aplicar os mesmos filtros aos dados anteriores
+                    if 'Etapa Funil' in df_anterior_filtrado.columns:
+                        df_anterior_filtrado = df_anterior_filtrado[df_anterior_filtrado['Etapa Funil'].isin(etapas_funil)]
+                    
+                    if 'Tipo Detectado' in df_anterior_filtrado.columns:
+                        df_anterior_filtrado = df_anterior_filtrado[df_anterior_filtrado['Tipo Detectado'].isin(tipos_selecionados)]
+                    
+                    if 'Tipo de campanha' in df_anterior_filtrado.columns and tipo_campanha:
+                        df_anterior_filtrado = df_anterior_filtrado[df_anterior_filtrado['Tipo de campanha'].isin(tipo_campanha)]
+                    
+                    if 'Status da campanha' in df_anterior_filtrado.columns and status_campanha:
+                        df_anterior_filtrado = df_anterior_filtrado[df_anterior_filtrado['Status da campanha'].isin(status_campanha)]
                     
                     metrica_comparacao = st.selectbox(
                         "Selecione uma métrica para comparação",
