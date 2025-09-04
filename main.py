@@ -44,7 +44,7 @@ rel_metrica = '''
             Taxa de conversão - Eficácia do funnel  
             
             Tipo: 📢 Display -> Atenção para as métricas:
-            *O que é:* Anúncios visuais em sites parceiros do Google.  
+            *O que é:* Anúncios visual em sites parceiros do Google.  
             *Objetivos:* Aumentar awareness, remarketing e construção de marca.  
             *Métricas-chave:*
             Impressões - Alcance da campanha  
@@ -314,30 +314,6 @@ def carregar_dados_meta(arquivo):
         st.error(f"Erro ao carregar arquivo do Meta: {str(e)}")
         return None
 
-def detectar_etapa_funil(nome_campanha):
-    """Detecta a etapa do funil com base no nome da campanha"""
-    try:
-        if pd.isna(nome_campanha) or not isinstance(nome_campanha, str):
-            return 'Outros'
-            
-        nome = nome_campanha.lower()
-        
-        topo_keywords = ['awareness', 'consciencia', 'alcance', 'reach', 'branding', 'marca', 'reconhecimento']
-        meio_keywords = ['consideracao', 'consideração', 'consideration', 'engajamento', 'engagement', 'video', 'vídeo', 'traffic', 'tráfego']
-        fundo_keywords = ['conversao', 'conversão', 'conversion', 'venda', 'sales', 'lead', 'performance', 'pmax', 'contato']
-        
-        if any(keyword in nome for keyword in topo_keywords):
-            return 'Topo'
-        elif any(keyword in nome for keyword in meio_keywords):
-            return 'Meio'
-        elif any(keyword in nome for keyword in fundo_keywords):
-            return 'Fundo'
-        else:
-            return 'Outros'
-    except Exception as e:
-        print(f"Erro ao detectar etapa do funil: {str(e)}")
-        return 'Outros'
-
 def combinar_dados_plataformas(df_google_ads, df_meta):
     """Combina dados de Google Ads e Meta em um único DataFrame"""
     try:
@@ -382,6 +358,30 @@ def combinar_dados_plataformas(df_google_ads, df_meta):
         st.error(f"Erro ao combinar dados: {str(e)}")
         return None
 
+def detectar_etapa_funil(nome_campanha):
+    """Detecta a etapa do funil com base no nome da campanha"""
+    try:
+        if pd.isna(nome_campanha) or not isinstance(nome_campanha, str):
+            return 'Outros'
+            
+        nome = nome_campanha.lower()
+        
+        topo_keywords = ['awareness', 'consciencia', 'alcance', 'reach', 'branding', 'marca', 'reconhecimento']
+        meio_keywords = ['consideracao', 'consideração', 'consideration', 'engajamento', 'engagement', 'video', 'vídeo', 'traffic', 'tráfego']
+        fundo_keywords = ['conversao', 'conversão', 'conversion', 'venda', 'sales', 'lead', 'performance', 'pmax', 'contato']
+        
+        if any(keyword in nome for keyword in topo_keywords):
+            return 'Topo'
+        elif any(keyword in nome for keyword in meio_keywords):
+            return 'Meio'
+        elif any(keyword in nome for keyword in fundo_keywords):
+            return 'Fundo'
+        else:
+            return 'Outros'
+    except Exception as e:
+        print(f"Erro ao detectar etapa do funil: {str(e)}")
+        return 'Outros'
+
 METRICAS_POR_ETAPA = {
     'Topo': ['Impressões', 'Alcance', 'Custo', 'CPM', 'Cliques', 'CTR', 'Engajamentos', 'Frequência'],
     'Meio': ['Impressões', 'Cliques', 'CTR', 'CPM', 'Custo', 'Engajamentos', 'Visualização', 'ThruPlays'],
@@ -407,7 +407,7 @@ def calcular_metricas(df):
     return metricas
 
 def criar_boxplot(df, coluna):
-    """Cria um boxplot para uma coluna numérica"""
+    """Cria a boxplot para uma coluna numérica"""
     try:
         plt.figure(figsize=(8, 4))
         sns.boxplot(x=df[coluna])
@@ -670,7 +670,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
                     - Considere que os dados vêm de múltiplas plataformas: {plataformas if plataformas else 'Não especificadas'}
                     - Considere os objetivos das campanhas (que podem ser deduzidos pelos seus nomes) quando fizer sua análise
-                    Apenas Analise o desempenho com foco em tendências com os pontos:
+                    Apenas Analise o desempenho com focus em tendências com os pontos:
                     - Padrões de longo prazo
                     - Eficácia estratégica por plataforma
                     - Alinhamento com objetivos dado o tipo de campanha
@@ -716,7 +716,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     - Ações imediatas por plataforma
                     - Monitoramentos necessários
                     - Planejamento futuro multicanal
-                    - Experimentos sugeridos para otimizar o mix de canais
+                    - Experimentos sugeridos para otimizar o mix de canals
                     
                     Dados: {dados_para_llm}
 
@@ -863,93 +863,84 @@ def mostrar_app_principal():
     tab_analise, tab_relatorios = st.tabs(["📈 Análise de Campanhas", "🗂 Meus Relatórios"])
     
     with tab_analise:
-        st.subheader("Selecione as Plataformas para Análise")
+        st.subheader("Upload de Arquivos CSV")
         
-        # Opção para selecionar múltiplas plataformas
-        plataformas_selecionadas = st.multiselect(
-            "Plataformas de Anúncios",
-            options=["Google Ads", "Meta (Facebook/Instagram)"],
-            default=["Google Ads", "Meta (Facebook/Instagram)"],
-            key="plataformas_selecionadas"
-        )
+        # Criar abas para Google Ads e Meta
+        tab_google, tab_meta = st.tabs(["Google Ads", "Meta (Facebook/Instagram)"])
         
-        st.session_state.plataformas_selecionadas = plataformas_selecionadas
+        df_google_atual = None
+        df_google_anterior = None
+        df_meta_atual = None
+        df_meta_anterior = None
         
-        col1, col2 = st.columns(2)
+        with tab_google:
+            st.subheader("📅 Google Ads - Mês Atual")
+            arquivo_google_atual = st.file_uploader(
+                "Carregue o relatório do Google Ads (mês atual)",
+                type=["csv"],
+                key="uploader_google_atual"
+            )
+            if arquivo_google_atual:
+                df_google_atual = carregar_dados_google_ads(arquivo_google_atual)
+                if df_google_atual is not None:
+                    st.success("✅ Dados do Google Ads (mês atual) carregados com sucesso!")
+            
+            st.subheader("🗓️ Google Ads - Mês Anterior")
+            arquivo_google_anterior = st.file_uploader(
+                "Carregue o relatório do Google Ads (mês anterior)",
+                type=["csv"],
+                key="uploader_google_anterior"
+            )
+            if arquivo_google_anterior:
+                df_google_anterior = carregar_dados_google_ads(arquivo_google_anterior)
+                if df_google_anterior is not None:
+                    st.success("✅ Dados do Google Ads (mês anterior) carregados com sucesso!")
         
-        with col1:
-            st.subheader("📅 Mês Atual (Mais Recente)")
+        with tab_meta:
+            st.subheader("📅 Meta - Mês Atual")
+            arquivo_meta_atual = st.file_uploader(
+                "Carregue o relatório do Meta (mês atual)",
+                type=["csv"],
+                key="uploader_meta_atual"
+            )
+            if arquivo_meta_atual:
+                df_meta_atual = carregar_dados_meta(arquivo_meta_atual)
+                if df_meta_atual is not None:
+                    st.success("✅ Dados do Meta (mês atual) carregados com sucesso!")
             
-            df_google_atual = None
-            df_meta_atual = None
-            
-            if "Google Ads" in plataformas_selecionadas:
-                st.write("**Google Ads**")
-                arquivo_google_atual = st.file_uploader(
-                    "Carregue o relatório do Google Ads (mês atual)",
-                    type=["csv"],
-                    key="uploader_google_atual"
-                )
-                if arquivo_google_atual:
-                    df_google_atual = carregar_dados_google_ads(arquivo_google_atual)
-                    if df_google_atual is not None:
-                        st.success("✅ Dados do Google Ads carregados com sucesso!")
-            
-            if "Meta (Facebook/Instagram)" in plataformas_selecionadas:
-                st.write("**Meta (Facebook/Instagram)**")
-                arquivo_meta_atual = st.file_uploader(
-                    "Carregue o relatório do Meta (mês atual)",
-                    type=["csv"],
-                    key="uploader_meta_atual"
-                )
-                if arquivo_meta_atual:
-                    df_meta_atual = carregar_dados_meta(arquivo_meta_atual)
-                    if df_meta_atual is not None:
-                        st.success("✅ Dados do Meta carregados com sucesso!")
-            
-            # Combinar dados das plataformas selecionadas
-            if df_google_atual is not None or df_meta_atual is not None:
-                df_combinado_atual = combinar_dados_plataformas(df_google_atual, df_meta_atual)
-                if df_combinado_atual is not None:
-                    st.session_state.dados_atual = df_combinado_atual
-                    st.success("✅ Dados combinados do mês atual carregados com sucesso!")
+            st.subheader("🗓️ Meta - Mês Anterior")
+            arquivo_meta_anterior = st.file_uploader(
+                "Carregue o relatório do Meta (mês anterior)",
+                type=["csv"],
+                key="uploader_meta_anterior"
+            )
+            if arquivo_meta_anterior:
+                df_meta_anterior = carregar_dados_meta(arquivo_meta_anterior)
+                if df_meta_anterior is not None:
+                    st.success("✅ Dados do Meta (mês anterior) carregados com sucesso!")
         
-        with col2:
-            st.subheader("🗓️ Mês Anterior")
-            
-            df_google_anterior = None
-            df_meta_anterior = None
-            
-            if "Google Ads" in plataformas_selecionadas:
-                st.write("**Google Ads**")
-                arquivo_google_anterior = st.file_uploader(
-                    "Carregue o relatório do Google Ads (mês anterior)",
-                    type=["csv"],
-                    key="uploader_google_anterior"
-                )
-                if arquivo_google_anterior:
-                    df_google_anterior = carregar_dados_google_ads(arquivo_google_anterior)
-                    if df_google_anterior is not None:
-                        st.success("✅ Dados do Google Ads (mês anterior) carregados com sucesso!")
-            
-            if "Meta (Facebook/Instagram)" in plataformas_selecionadas:
-                st.write("**Meta (Facebook/Instagram)**")
-                arquivo_meta_anterior = st.file_uploader(
-                    "Carregue o relatório do Meta (mês anterior)",
-                    type=["csv"],
-                    key="uploader_meta_anterior"
-                )
-                if arquivo_meta_anterior:
-                    df_meta_anterior = carregar_dados_meta(arquivo_meta_anterior)
-                    if df_meta_anterior is not None:
-                        st.success("✅ Dados do Meta (mês anterior) carregados com sucesso!")
-            
-            # Combinar dados das plataformas selecionadas
-            if df_google_anterior is not None or df_meta_anterior is not None:
-                df_combinado_anterior = combinar_dados_plataformas(df_google_anterior, df_meta_anterior)
-                if df_combinado_anterior is not None:
-                    st.session_state.dados_anterior = df_combinado_anterior
-                    st.success("✅ Dados combinados do mês anterior carregados com sucesso!")
+        # Detectar quais plataformas foram carregadas
+        plataformas_carregadas = []
+        if df_google_atual is not None or df_google_anterior is not None:
+            plataformas_carregadas.append("Google Ads")
+        if df_meta_atual is not None or df_meta_anterior is not None:
+            plataformas_carregadas.append("Meta")
+        
+        st.session_state.plataformas_selecionadas = plataformas_carregadas
+        
+        # Combinar dados das plataformas para mês atual
+        if df_google_atual is not None or df_meta_atual is not None:
+            df_combinado_atual = combinar_dados_plataformas(df_google_atual, df_meta_atual)
+            if df_combinado_atual is not None:
+                st.session_state.dados_atual = df_combinado_atual
+                st.success("✅ Dados combinados do mês atual carregados com sucesso!")
+        
+        # Combinar dados das plataformas para mês anterior
+        if df_google_anterior is not None or df_meta_anterior is not None:
+            df_combinado_anterior = combinar_dados_plataformas(df_google_anterior, df_meta_anterior)
+            if df_combinado_anterior is not None:
+                st.session_state.dados_anterior = df_combinado_anterior
+                st.success("✅ Dados combinados do mês anterior carregados com sucesso!")
         
         with st.expander("ℹ️ Informações do Cliente (Opcional)"):
             cliente_nome = st.text_input("Nome do Cliente")
@@ -1233,7 +1224,7 @@ def mostrar_app_principal():
                             }).applymap(color_variation, subset=['Variação (%)'])
                         )
                 else:
-                    st.info("ℹ️ Carregue os dados do mês anterior para habilitar la comparação mensal")
+                    st.info("ℹ️ Carregue os dados do mês anterior para habilitar a comparação mensal")
             
             with tab5:
                 st.subheader("Relatório Avançado com IA")
