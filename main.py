@@ -252,6 +252,9 @@ def carregar_dados_google_ads(arquivo):
                 df[col] = df[col].astype(str).str.replace(',', '.').str.replace('%', '').str.replace(' ', '')
                 df[col] = pd.to_numeric(df[col], errors='coerce')
         
+        # Adicionar coluna para identificar a plataforma
+        df['Plataforma'] = 'Google Ads'
+        
         return df
     except Exception as e:
         st.error(f"Erro ao carregar arquivo do Google Ads: {str(e)}")
@@ -284,7 +287,7 @@ def carregar_dados_meta(arquivo):
             'Cliques no link': 'Cliques',
             'FrequÃªncia': 'Frequência',
             'Cliques (todos)': 'Cliques totais',
-            'VisualizaÃ§Ãµes': 'Visualizações',
+            'VisualizaÃ§Ãµes': 'Visualização',
             'ThruPlays': 'ThruPlays',
             'CPM (custo por 1.000 impressÃµes) (BRL)': 'CPM'
         }
@@ -295,13 +298,16 @@ def carregar_dados_meta(arquivo):
             'Orçamento', 'Resultados', 'Alcance', 'Impressões', 
             'Custo por resultado', 'Custo', 'CTR', 'Engajamentos',
             'Engajamento com a página', 'Cliques', 'Frequência',
-            'Cliques totais', 'Visualizações', 'ThruPlays', 'CPM'
+            'Cliques totais', 'Visualização', 'ThruPlays', 'CPM'
         ]
         
         for col in colunas_numericas:
             if col in df.columns:
                 df[col] = df[col].astype(str).str.replace(',', '.').str.replace('%', '').str.replace(' ', '')
                 df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        # Adicionar coluna para identificar a plataforma
+        df['Plataforma'] = 'Meta'
         
         return df
     except Exception as e:
@@ -332,10 +338,54 @@ def detectar_etapa_funil(nome_campanha):
         print(f"Erro ao detectar etapa do funil: {str(e)}")
         return 'Outros'
 
+def combinar_dados_plataformas(df_google_ads, df_meta):
+    """Combina dados de Google Ads e Meta em um único DataFrame"""
+    try:
+        # Verificar se temos dados de ambas as plataformas
+        dfs = []
+        
+        if df_google_ads is not None and not df_google_ads.empty:
+            dfs.append(df_google_ads)
+        
+        if df_meta is not None and not df_meta.empty:
+            dfs.append(df_meta)
+        
+        if not dfs:
+            return None
+        
+        # Combinar os DataFrames
+        df_combinado = pd.concat(dfs, ignore_index=True)
+        
+        # Padronizar colunas comuns
+        colunas_comuns = ['Campanha', 'Status da campanha', 'Orçamento', 'Custo', 'Impressões', 
+                         'Cliques', 'CTR', 'Plataforma']
+        
+        # Adicionar colunas específicas de cada plataforma com valores padrão
+        colunas_google = ['Conversões', 'CPC médio', 'Custo por conversão', 'CPM médio']
+        colunas_meta = ['Resultados', 'Custo por resultado', 'Alcance', 'Frequência', 'CPM']
+        
+        for col in colunas_google:
+            if col not in df_combinado.columns:
+                df_combinado[col] = np.nan
+        
+        for col in colunas_meta:
+            if col not in df_combinado.columns:
+                df_combinado[col] = np.nan
+        
+        # Adicionar colunas de tipo detectado e etapa do funil
+        df_combinado['Tipo Detectado'] = df_combinado['Campanha'].apply(detectar_tipo_campanha)
+        df_combinado['Etapa Funil'] = df_combinado['Campanha'].apply(detectar_etapa_funil)
+        
+        return df_combinado
+        
+    except Exception as e:
+        st.error(f"Erro ao combinar dados: {str(e)}")
+        return None
+
 METRICAS_POR_ETAPA = {
     'Topo': ['Impressões', 'Alcance', 'Custo', 'CPM', 'Cliques', 'CTR', 'Engajamentos', 'Frequência'],
-    'Meio': ['Impressões', 'Cliques', 'CTR', 'CPM', 'Custo', 'Engajamentos', 'Visualizações', 'ThruPlays'],
-    'Fundo': ['Impressões', 'Cliques', 'Resultados', 'CTR', 'CPM', 'Custo por resultado', 'Custo']
+    'Meio': ['Impressões', 'Cliques', 'CTR', 'CPM', 'Custo', 'Engajamentos', 'Visualização', 'ThruPlays'],
+    'Fundo': ['Impressões', 'Cliques', 'Resultados', 'Conversões', 'CTR', 'CPM', 'Custo por resultado', 'Custo por conversão', 'Custo']
 }
 
 def calcular_metricas(df):
@@ -431,7 +481,7 @@ def obter_relatorio_completo(relatorio_id):
         st.error(f"Erro ao buscar relatório: {str(e)}")
         return None
 
-def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, cliente_info=None, df_anterior=None, usuario_id=None):
+def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, cliente_info=None, df_anterior=None, usuario_id=None, plataformas=None):
     """Gera um relatório analítico usando LLM e salva no MongoDB"""
     if not gemini_api_key:
         relatorio_completo = {
@@ -453,6 +503,10 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
         model_id = "gemini-2.0-flash"
         
         dados_para_llm = ""
+        
+        # Adicionar informações sobre as plataformas
+        if plataformas:
+            dados_para_llm += f"## Plataformas Analisadas: {', '.join(plataformas)}\n\n"
         
         dados_para_llm += "## Resumo Estatístico - Mês Atual:\n"
         for col in colunas_selecionadas:
@@ -476,10 +530,10 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
         dados_para_llm += "\n## Melhores Campanhas - Mês Atual:\n"
         for col in colunas_selecionadas[:10]:
             if col in df.columns and pd.api.types.is_numeric_dtype(df[col]):
-                top3 = df.nlargest(3, col)[['Campanha', col]]
+                top3 = df.nlargest(3, col)[['Campanha', 'Plataforma', col]]
                 dados_para_llm += f"- {col}:\n"
                 for _, row in top3.iterrows():
-                    dados_para_llm += f"  - {row['Campanha']}: {row[col]:.2f}\n"
+                    dados_para_llm += f"  - {row['Campanha']} ({row['Plataforma']}): {row[col]:.2f}\n"
         
         if df_anterior is not None and isinstance(df_anterior, pd.DataFrame) and not df_anterior.empty:
             dados_para_llm += "\n## Insights de Correlação:\n"
@@ -501,69 +555,82 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                 prompts = [
                     ("1. Introdução com visão geral", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
+                    - Considere que os dados vêm de múltiplas plataformas: {plataformas if plataformas else 'Não especificadas'}
 
                     Dê apenas um panorama geral sobre os dados com os pontos:
 
-                    - Visão geral do desempenho das campanhas
+                    - Visão geral do desempenho das campanhas em todas as plataformas
                     - Contexto sobre os dados analisados
                     - Destaque inicial dos pontos mais relevantes
+                    - Comparação entre o desempenho nas diferentes plataformas
                     
                     Dados: {dados_para_llm}
                     
                     """),
                     ("2. Análise de cada métrica selecionada", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
+                    - Considere que os dados vêm de múltiplas plataformas: {plataformas if plataformas else 'Não especificadas'}
 
                     Faça apenas uma análise técnica detalhada de cada métrica selecionada, com os pontos:
                     - Significado de cada métrica
                     - Performance em relação aos benchmarks do setor
                     - Relação com o tipo de campanha
+                    - Comparação entre plataformas quando aplicável
                     
                     Dados: {dados_para_llm}
  
                     """),
                     ("3. Comparativo mensal detalhado", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
+                    - Considere que os dados vêm de múltiplas plataformas: {plataformas if plataformas else 'Não especificadas'}
                     - Considere os objetivos das campanhas (que podem ser deduzidos pelos seus nomes) quando fizer sua análise
                     Faça apenas um comparativo mensal detalhado com os pontos:
                     Analise comparativamente os dados com o mês anterior (quando disponível):
                     - Variações percentuais significativas
                     - Tendências identificadas
+                    - Comparação entre plataformas
                     
                     Dados: {dados_para_llm}
 
                     """),
                     ("4. Insights sobre correlações", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
+                    - Considere que os dados vêm de múltiplas plataformas: {plataformas if plataformas else 'Não especificadas'}
                     - Considere os objetivos das campanhas (que podem ser deduzidos pelos seus nomes) quando fizer sua análise
                 
                     Apenas Identifique correlações importantes entre as métricas com os pontos:
                     - Relações causa-efeito
                     - Padrões de desempenho
                     - Anomalias e outliers
+                    - Comparações entre plataformas
                     - EX: Se métrica X subiu e métrica Y abaixou, isso significa que...
+                    - EX: Como as diferentes plataformas se complementam no funnel
                     
                     Dados: {dados_para_llm}
         
                     """),
                     ("5. Recomendações técnicas", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
+                    - Considere que os dados vêm de múltiplas plataformas: {plataformas if plataformas else 'Não especificadas'}
                     - Considere os objetivos das campanhas (que podem ser deduzidos pelos seus nomes) quando fizer sua análise
                     Apenas gere recomendações técnicas específicas baseadas na análise com os pontos:
-                    - Ajustes em campanhas
-                    - Otimizações sugeridas
+                    - Ajustes em campanhas por plataforma
+                    - Otimizações sugeridas para cada plataforma
                     - Alertas sobre problemas identificados
+                    - Sugestões de realocação de orçamento entre plataformas
                     
                     Dados: {dados_para_llm}
  
                     """),
                     ("6. Conclusão com resumo executivo", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
+                    - Considere que os dados vêm de múltiplas plataformas: {plataformas if plataformas else 'Não especificadas'}
                     - Considere os objetivos das campanhas (que podem ser deduzidos pelos seus nomes) quando fizer sua análise
                     Apenas Conclua com um resumo executivo técnico com os pontos:
-                    - Principais achados
+                    - Principais achados por plataforma
                     - Recomendações prioritárias
                     - Próximos passos sugeridos
+                    - Visão integrada do desempenho multicanal
                     
                     Dados: {dados_para_llm}
 
@@ -573,72 +640,83 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                 prompts = [
                     ("1. Visão geral simplificada", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
+                    - Considere que os dados vêm de múltiplas plataformas: {plataformas if plataformas else 'Não especificadas'}
                     - Considere os objetivos das campanhas (que podem ser deduzidos pelos seus nomes) quando fizer sua análise
                     Você é um estrategista de marketing. Apenas Gere uma visão geral simplificada em português com os pontos:
-                    - Principais resultados
+                    - Principais resultados por plataforma
                     - Destaques e preocupações
-                    - Contexto estratégico
+                    - Contexto estratégico multicanal
                     
                     Dados: {dados_para_llm}
         
                     """),
                     ("2. Principais destaques e preocupações", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
+                    - Considere que os dados vêm de múltiplas plataformas: {plataformas if plataformas else 'Não especificadas'}
                     - Considere os objetivos das campanhas (que podem ser deduzidos pelos seus nomes) quando fizer sua análise
                     Destaque os pontos mais relevantes e preocupações:
 
                     Apenas apresente os principais destaques e preocupações com os pontos:
-                    - Comparações mensais
+                    - Comparações mensais por plataforma
                     - Variações significativas
                     - Impacto estratégico dado o tipo de campanha
                     - Alinhamento com objetivos dado o tipo de campanha
+                    - Comparação entre desempenho nas diferentes plataformas
                     
                     Dados: {dados_para_llm}
 
                     """),
                     ("3. Análise estratégica do desempenho", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
+                    - Considere que os dados vêm de múltiplas plataformas: {plataformas if plataformas else 'Não especificadas'}
                     - Considere os objetivos das campanhas (que podem ser deduzidos pelos seus nomes) quando fizer sua análise
                     Apenas Analise o desempenho com foco em tendências com os pontos:
                     - Padrões de longo prazo
-                    - Eficácia estratégica
+                    - Eficácia estratégica por plataforma
                     - Alinhamento com objetivos dado o tipo de campanha
+                    - Sinergias entre plataformas
                     
                     Dados: {dados_para_llm}
 
                     """),
                     ("4. Relações entre métricas", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
+                    - Considere que os dados vêm de múltiplas plataformas: {plataformas if plataformas else 'Não especificadas'}
                     - Considere os objetivos das campanhas (que podem ser deduzidos pelos seus nomes) quando fizer sua análise
 
                     Apenas Explique como as métricas se relacionam e impactam os resultados com os pontos:
-                    - Conexões importantes
+                    - Conexões importantes entre plataformas
                     - Trade-offs identificados
-                    - Sinergias encontradas
+                    - Sinergias encontradas entre canais
                     - Relações causa-efeito
                     - Tire insights sobre os trade offs entre as variações das métricas. Relacione-as e tire conclusões sobre o que está acontecendo.
+                    - Analise como as diferentes plataformas contribuem para o funnel completo
                     
                     Dados: {dados_para_llm}
 
                     """),
                     ("5. Recomendações de alto nível", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
+                    - Considere que os dados vêm de múltiplas plataformas: {plataformas if plataformas else 'Não especificadas'}
                     - Considere os objetivos das campanhas (que podem ser deduzidos pelos seus nomes) quando fizer sua análise
                     Apenas Gere recomendações estratégicas com os pontos:
-                    - Direcionamentos gerais
+                    - Direcionamentos gerais por plataforma
                     - Priorizações sugeridas
-                    - Ajustes recomendados
+                    - Ajustes recomendados no mix de canais
+                    - Sugestões de realocação de orçamento entre plataformas
                     
                     Dados: {dados_para_llm}
 
                     """),
                     ("6. Próximos passos sugeridos", f"""
                     - Quando mencionar métricas, considere o enfoque métrica vs tipo de campanha: {rel_metrica}
+                    - Considere que os dados vêm de múltiplas plataformas: {plataformas if plataformas else 'Não especificadas'}
                     - Considere os objetivos das campanhas (que podem ser deduzidos pelos seus nomes) quando fizer sua análise
                     Apenas Defina os próximos passos estratégicos com os pontos:
-                    - Ações imediatas
+                    - Ações imediatas por plataforma
                     - Monitoramentos necessários
-                    - Planejamento futuro
+                    - Planejamento futuro multicanal
+                    - Experimentos sugeridos para otimizar o mix de canais
                     
                     Dados: {dados_para_llm}
 
@@ -670,7 +748,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     
                     pesquisa = client.models.generate_content(
                         model=model_id,
-                        contents="Faça uma pesquisa sobre notícias sobre novidades em otimização de campanhas digitais. Inclua apenas informações relevantes e atualizadas.",
+                        contents="Faça uma pesquisa sobre notícias sobre novidades em otimização de campanhas digitais multicanal. Inclua apenas informações relevantes e atualizadas.",
                         config=GenerateContentConfig(
                             tools=[google_search_tool],
                             response_modalities=["TEXT"],
@@ -702,7 +780,8 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                 "data_geracao": datetime.now(),
                 "cliente": cliente_info if cliente_info else "Não especificado",
                 "status": "ativo",
-                "comparativo_mensal": df_anterior is not None
+                "comparativo_mensal": df_anterior is not None,
+                "plataformas": plataformas if plataformas else []
             }
             
             relatorio_id = salvar_relatorio_mongodb(relatorio_data, usuario_id)
@@ -779,60 +858,98 @@ def mostrar_app_principal():
     if 'dados_atual' not in st.session_state:
         st.session_state.dados_atual = None
         st.session_state.dados_anterior = None
-        st.session_state.tipo_plataforma = None
+        st.session_state.plataformas_selecionadas = []
     
     tab_analise, tab_relatorios = st.tabs(["📈 Análise de Campanhas", "🗂 Meus Relatórios"])
     
     with tab_analise:
-        st.subheader("Selecione a Plataforma")
-        tipo_plataforma = st.radio(
-            "Plataforma de Anúncios",
+        st.subheader("Selecione as Plataformas para Análise")
+        
+        # Opção para selecionar múltiplas plataformas
+        plataformas_selecionadas = st.multiselect(
+            "Plataformas de Anúncios",
             options=["Google Ads", "Meta (Facebook/Instagram)"],
-            index=0,
-            key="plataforma_selecionada"
+            default=["Google Ads", "Meta (Facebook/Instagram)"],
+            key="plataformas_selecionadas"
         )
         
-        st.session_state.tipo_plataforma = tipo_plataforma
+        st.session_state.plataformas_selecionadas = plataformas_selecionadas
         
         col1, col2 = st.columns(2)
         
         with col1:
             st.subheader("📅 Mês Atual (Mais Recente)")
-            arquivo_atual = st.file_uploader(
-                f"Carregue o relatório do mês atual ({tipo_plataforma})",
-                type=["csv"],
-                key="uploader_atual"
-            )
-            if arquivo_atual:
-                if tipo_plataforma == "Google Ads":
-                    df_atual = carregar_dados_google_ads(arquivo_atual)
-                else:
-                    df_atual = carregar_dados_meta(arquivo_atual)
-                
-                if df_atual is not None:
-                    df_atual['Tipo Detectado'] = df_atual['Campanha'].apply(detectar_tipo_campanha)
-                    df_atual['Etapa Funil'] = df_atual['Campanha'].apply(detectar_etapa_funil)
-                    st.session_state.dados_atual = df_atual
-                    st.success("✅ Dados do mês atual carregados com sucesso!")
+            
+            df_google_atual = None
+            df_meta_atual = None
+            
+            if "Google Ads" in plataformas_selecionadas:
+                st.write("**Google Ads**")
+                arquivo_google_atual = st.file_uploader(
+                    "Carregue o relatório do Google Ads (mês atual)",
+                    type=["csv"],
+                    key="uploader_google_atual"
+                )
+                if arquivo_google_atual:
+                    df_google_atual = carregar_dados_google_ads(arquivo_google_atual)
+                    if df_google_atual is not None:
+                        st.success("✅ Dados do Google Ads carregados com sucesso!")
+            
+            if "Meta (Facebook/Instagram)" in plataformas_selecionadas:
+                st.write("**Meta (Facebook/Instagram)**")
+                arquivo_meta_atual = st.file_uploader(
+                    "Carregue o relatório do Meta (mês atual)",
+                    type=["csv"],
+                    key="uploader_meta_atual"
+                )
+                if arquivo_meta_atual:
+                    df_meta_atual = carregar_dados_meta(arquivo_meta_atual)
+                    if df_meta_atual is not None:
+                        st.success("✅ Dados do Meta carregados com sucesso!")
+            
+            # Combinar dados das plataformas selecionadas
+            if df_google_atual is not None or df_meta_atual is not None:
+                df_combinado_atual = combinar_dados_plataformas(df_google_atual, df_meta_atual)
+                if df_combinado_atual is not None:
+                    st.session_state.dados_atual = df_combinado_atual
+                    st.success("✅ Dados combinados do mês atual carregados com sucesso!")
         
         with col2:
             st.subheader("🗓️ Mês Anterior")
-            arquivo_anterior = st.file_uploader(
-                f"Carregue o relatório do mês anterior ({tipo_plataforma})",
-                type=["csv"],
-                key="uploader_anterior"
-            )
-            if arquivo_anterior:
-                if tipo_plataforma == "Google Ads":
-                    df_anterior = carregar_dados_google_ads(arquivo_anterior)
-                else:
-                    df_anterior = carregar_dados_meta(arquivo_anterior)
-                
-                if df_anterior is not None:
-                    df_anterior['Tipo Detectado'] = df_anterior['Campanha'].apply(detectar_tipo_campanha)
-                    df_anterior['Etapa Funil'] = df_anterior['Campanha'].apply(detectar_etapa_funil)
-                    st.session_state.dados_anterior = df_anterior
-                    st.success("✅ Dados do mês anterior carregados com sucesso!")
+            
+            df_google_anterior = None
+            df_meta_anterior = None
+            
+            if "Google Ads" in plataformas_selecionadas:
+                st.write("**Google Ads**")
+                arquivo_google_anterior = st.file_uploader(
+                    "Carregue o relatório do Google Ads (mês anterior)",
+                    type=["csv"],
+                    key="uploader_google_anterior"
+                )
+                if arquivo_google_anterior:
+                    df_google_anterior = carregar_dados_google_ads(arquivo_google_anterior)
+                    if df_google_anterior is not None:
+                        st.success("✅ Dados do Google Ads (mês anterior) carregados com sucesso!")
+            
+            if "Meta (Facebook/Instagram)" in plataformas_selecionadas:
+                st.write("**Meta (Facebook/Instagram)**")
+                arquivo_meta_anterior = st.file_uploader(
+                    "Carregue o relatório do Meta (mês anterior)",
+                    type=["csv"],
+                    key="uploader_meta_anterior"
+                )
+                if arquivo_meta_anterior:
+                    df_meta_anterior = carregar_dados_meta(arquivo_meta_anterior)
+                    if df_meta_anterior is not None:
+                        st.success("✅ Dados do Meta (mês anterior) carregados com sucesso!")
+            
+            # Combinar dados das plataformas selecionadas
+            if df_google_anterior is not None or df_meta_anterior is not None:
+                df_combinado_anterior = combinar_dados_plataformas(df_google_anterior, df_meta_anterior)
+                if df_combinado_anterior is not None:
+                    st.session_state.dados_anterior = df_combinado_anterior
+                    st.success("✅ Dados combinados do mês anterior carregados com sucesso!")
         
         with st.expander("ℹ️ Informações do Cliente (Opcional)"):
             cliente_nome = st.text_input("Nome do Cliente")
@@ -874,6 +991,14 @@ def mostrar_app_principal():
                 
                 st.subheader("Filtros Adicionais")
                 
+                # Filtro por plataforma
+                plataformas_disponiveis = sorted(df['Plataforma'].unique()) if 'Plataforma' in df.columns else []
+                plataformas_filtro = st.multiselect(
+                    "Plataforma",
+                    options=plataformas_disponiveis,
+                    default=plataformas_disponiveis
+                )
+                
                 tipos_detectados = sorted(df['Tipo Detectado'].unique()) if 'Tipo Detectado' in df.columns else []
                 tipos_selecionados = st.multiselect(
                     "Tipo de Campanha (detectado pelo nome)",
@@ -908,6 +1033,9 @@ def mostrar_app_principal():
             if 'Etapa Funil' in df.columns:
                 df_filtrado = df_filtrado[df_filtrado['Etapa Funil'].isin(etapas_funil)]
             
+            if 'Plataforma' in df.columns and plataformas_filtro:
+                df_filtrado = df_filtrado[df_filtrado['Plataforma'].isin(plataformas_filtro)]
+            
             if 'Tipo Detectado' in df.columns:
                 df_filtrado = df_filtrado[df_filtrado['Tipo Detectado'].isin(tipos_selecionados)]
             
@@ -920,17 +1048,29 @@ def mostrar_app_principal():
             contagem_ativas = len(df_filtrado[df_filtrado['Status da campanha'] == 'Ativada']) if 'Status da campanha' in df_filtrado.columns else 0
             contagem_pausadas = len(df_filtrado[df_filtrado['Status da campanha'] == 'Pausada']) if 'Status da campanha' in df_filtrado.columns else 0
             
-            tab1, tab2, tab3, tab4 = st.tabs(["📋 Visão Geral", "📊 Análise por Métrica", "🔄 Comparativo Mensal", "🧠 Relatório Avançado"])
+            tab1, tab2, tab3, tab4, tab5 = st.tabs(["📋 Visão Geral", "🌐 Análise por Plataforma", "📊 Análise por Métrica", "🔄 Comparativo Mensal", "🧠 Relatório Avançado"])
             
             with tab1:
                 st.subheader("Visão Geral das Campanhas - Mês Atual")
                 
-                col1, col2, col3 = st.columns(3)
+                col1, col2, col3, col4 = st.columns(4)
                 col1.metric("Total de Campanhas", len(df_filtrado))
                 
                 if 'Status da campanha' in df_filtrado.columns:
                     col2.metric("Campanhas Ativas", contagem_ativas)
                     col3.metric("Campanhas Pausadas", contagem_pausadas)
+                
+                if 'Plataforma' in df_filtrado.columns:
+                    col4.metric("Plataformas", len(df_filtrado['Plataforma'].unique()))
+                
+                if 'Plataforma' in df_filtrado.columns:
+                    st.subheader("Distribuição por Plataforma")
+                    fig, ax = plt.subplots(figsize=(8, 4))
+                    df_filtrado['Plataforma'].value_counts().plot(kind='bar', ax=ax, color=['#4CAF50', '#2196F3'])
+                    plt.title('Campanhas por Plataforma')
+                    plt.xlabel('Plataforma')
+                    plt.ylabel('Número de Campanhas')
+                    st.pyplot(fig)
                 
                 if 'Etapa Funil' in df_filtrado.columns:
                     st.subheader("Distribuição por Etapa do Funil")
@@ -941,7 +1081,7 @@ def mostrar_app_principal():
                     plt.ylabel('Número de Campanhas')
                     st.pyplot(fig)
                 
-                colunas_mostrar = ['Campanha']
+                colunas_mostrar = ['Campanha', 'Plataforma']
                 if 'Etapa Funil' in df_filtrado.columns:
                     colunas_mostrar.append('Etapa Funil')
                 if 'Tipo Detectado' in df_filtrado.columns:
@@ -954,6 +1094,37 @@ def mostrar_app_principal():
                 st.dataframe(df_filtrado[colunas_mostrar], use_container_width=True)
             
             with tab2:
+                st.subheader("Análise por Plataforma - Mês Atual")
+                
+                if 'Plataforma' in df_filtrado.columns:
+                    plataformas = df_filtrado['Plataforma'].unique()
+                    
+                    for plataforma in plataformas:
+                        st.subheader(f"Plataforma: {plataforma}")
+                        df_plataforma = df_filtrado[df_filtrado['Plataforma'] == plataforma]
+                        
+                        col1, col2, col3 = st.columns(3)
+                        col1.metric("Total de Campanhas", len(df_plataforma))
+                        
+                        if 'Status da campanha' in df_plataforma.columns:
+                            ativas = len(df_plataforma[df_plataforma['Status da campanha'] == 'Ativada'])
+                            pausadas = len(df_plataforma[df_plataforma['Status da campanha'] == 'Pausada'])
+                            col2.metric("Campanhas Ativas", ativas)
+                            col3.metric("Campanhas Pausadas", pausadas)
+                        
+                        # Métricas principais por plataforma
+                        metricas_principais = ['Custo', 'Impressões', 'Cliques', 'Conversões', 'Resultados']
+                        metricas_disponiveis = [m for m in metricas_principais if m in df_plataforma.columns]
+                        
+                        if metricas_disponiveis:
+                            st.write("**Métricas Principais:**")
+                            cols = st.columns(len(metricas_disponiveis))
+                            for i, metrica in enumerate(metricas_disponiveis):
+                                if pd.api.types.is_numeric_dtype(df_plataforma[metrica]):
+                                    valor_total = df_plataforma[metrica].sum()
+                                    cols[i].metric(metrica, f"{valor_total:,.2f}")
+            
+            with tab3:
                 st.subheader("Análise Detalhada por Métrica - Mês Atual")
                 
                 metrica_selecionada = st.selectbox(
@@ -981,16 +1152,16 @@ def mostrar_app_principal():
                             criar_boxplot(df_filtrado, metrica_selecionada)
                         
                         st.subheader(f"Top 5 Campanhas - {metrica_selecionada}")
-                        top5 = df_filtrado.nlargest(5, metrica_selecionada)[['Campanha', 'Etapa Funil', metrica_selecionada]]
+                        top5 = df_filtrado.nlargest(5, metrica_selecionada)[['Campanha', 'Plataforma', 'Etapa Funil', metrica_selecionada]]
                         st.dataframe(top5.style.format({metrica_selecionada: "{:,.2f}"}))
                         
                         st.subheader(f"Bottom 5 Campanhas - {metrica_selecionada}")
-                        bottom5 = df_filtrado.nsmallest(5, metrica_selecionada)[['Campanha', 'Etapa Funil', metrica_selecionada]]
+                        bottom5 = df_filtrado.nsmallest(5, metrica_selecionada)[['Campanha', 'Plataforma', 'Etapa Funil', metrica_selecionada]]
                         st.dataframe(bottom5.style.format({metrica_selecionada: "{:,.2f}"}))
                     else:
                         st.warning(f"A métrica {metrica_selecionada} não é numérica e não pode ser analisada desta forma")
             
-            with tab3:
+            with tab4:
                 st.subheader("Comparativo Mensal")
                 
                 if st.session_state.dados_anterior is not None:
@@ -999,6 +1170,9 @@ def mostrar_app_principal():
                     # Aplicar os mesmos filtros aos dados anteriores
                     if 'Etapa Funil' in df_anterior_filtrado.columns:
                         df_anterior_filtrado = df_anterior_filtrado[df_anterior_filtrado['Etapa Funil'].isin(etapas_funil)]
+                    
+                    if 'Plataforma' in df_anterior_filtrado.columns and plataformas_filtro:
+                        df_anterior_filtrado = df_anterior_filtrado[df_anterior_filtrado['Plataforma'].isin(plataformas_filtro)]
                     
                     if 'Tipo Detectado' in df_anterior_filtrado.columns:
                         df_anterior_filtrado = df_anterior_filtrado[df_anterior_filtrado['Tipo Detectado'].isin(tipos_selecionados)]
@@ -1059,9 +1233,9 @@ def mostrar_app_principal():
                             }).applymap(color_variation, subset=['Variação (%)'])
                         )
                 else:
-                    st.info("ℹ️ Carregue os dados do mês anterior para habilitar a comparação mensal")
+                    st.info("ℹ️ Carregue os dados do mês anterior para habilitar la comparação mensal")
             
-            with tab4:
+            with tab5:
                 st.subheader("Relatório Avançado com IA")
                 
                 if st.button("Gerar Relatório com Análise Avançada"):
@@ -1072,7 +1246,8 @@ def mostrar_app_principal():
                         tipo_relatorio, 
                         cliente_info,
                         st.session_state.dados_anterior if st.session_state.dados_anterior is not None else None,
-                        usuario.get("_id") if usuario else None
+                        usuario.get("_id") if usuario else None,
+                        st.session_state.plataformas_selecionadas
                     )
                     
                     for parte in relatorio["partes"]:
