@@ -822,9 +822,8 @@ def mostrar_tela_login():
                 else:
                     st.error(mensagem)
 
-# Adicione esta função após as outras funções existentes
-def combinar_relatorios(relatorio1_id, relatorio2_id, usuario_id):
-    """Combina dois relatórios em um único relatório unificado"""
+def combinar_relatorios_com_llm(relatorio1_id, relatorio2_id, usuario_id):
+    """Combina dois relatórios em um único relatório unificado usando LLM"""
     try:
         relatorio1 = obter_relatorio_completo(relatorio1_id)
         relatorio2 = obter_relatorio_completo(relatorio2_id)
@@ -832,130 +831,197 @@ def combinar_relatorios(relatorio1_id, relatorio2_id, usuario_id):
         if not relatorio1 or not relatorio2:
             return None, "Um ou ambos os relatórios não foram encontrados"
         
-        # Criar novo relatório combinado
-        relatorio_combinado = {
-            "tipo": "combinado",
-            "partes": [],
-            "texto_completo": "# Relatório Combinado\n\n",
-            "data_geracao": datetime.now(),
-            "status": "ativo",
-            "usuario_id": usuario_id,
-            "relatorios_originais": [relatorio1_id, relatorio2_id],
-            "cliente": {
-                "nome": f"Combinação: {relatorio1.get('cliente', {}).get('nome', 'Relatório 1')} + {relatorio2.get('cliente', {}).get('nome', 'Relatório 2')}",
-                "id": "combinado"
+        if not gemini_api_key:
+            return None, "API key do Gemini não configurada. Não é possível combinar relatórios com IA."
+        
+        # Configuração do cliente Gemini
+        client = genai.Client(api_key=gemini_api_key)
+        
+        # Extrair textos completos dos relatórios
+        texto_relatorio1 = relatorio1.get("texto_completo", "")
+        texto_relatorio2 = relatorio2.get("texto_completo", "")
+        
+        # Informações sobre os relatórios
+        info_relatorio1 = f"""
+        Cliente: {relatorio1.get('cliente', {}).get('nome', 'Não especificado')}
+        Tipo: {relatorio1.get('tipo', 'Não especificado')}
+        Data: {relatorio1['data_geracao'].strftime('%d/%m/%Y')}
+        Plataformas: {', '.join(relatorio1.get('plataformas', []))}
+        """
+        
+        info_relatorio2 = f"""
+        Cliente: {relatorio2.get('cliente', {}).get('nome', 'Não especificado')}
+        Tipo: {relatorio2.get('tipo', 'Não especificado')}
+        Data: {relatorio2['data_geracao'].strftime('%d/%m/%Y')}
+        Plataformas: {', '.join(relatorio2.get('plataformas', []))}
+        """
+        
+        with st.spinner("🧠 Combinando relatórios com IA..."):
+            # Criar relatório combinado
+            relatorio_combinado = {
+                "tipo": "combinado-ia",
+                "partes": [],
+                "texto_completo": "# Relatório Combinado com IA\n\n",
+                "data_geracao": datetime.now(),
+                "status": "ativo",
+                "usuario_id": usuario_id,
+                "relatorios_originais": [relatorio1_id, relatorio2_id],
+                "cliente": {
+                    "nome": f"Combinação IA: {relatorio1.get('cliente', {}).get('nome', 'Relatório 1')} + {relatorio2.get('cliente', {}).get('nome', 'Relatório 2')}",
+                    "id": "combinado-ia"
+                }
             }
-        }
-        
-        # Combinar as partes dos relatórios
-        texto_completo_md = "# Relatório Combinado\n\n"
-        texto_completo_md += f"## 📋 Origem dos Dados\n\n"
-        texto_completo_md += f"- **Relatório 1**: {relatorio1.get('cliente', {}).get('nome', 'Não especificado')} ({relatorio1.get('tipo', 'Não especificado')}) - {relatorio1['data_geracao'].strftime('%d/%m/%Y')}\n"
-        texto_completo_md += f"- **Relatório 2**: {relatorio2.get('cliente', {}).get('nome', 'Não especificado')} ({relatorio2.get('tipo', 'Não especificado')}) - {relatorio2['data_geracao'].strftime('%d/%m/%Y')}\n\n"
-        
-        # Adicionar introdução combinada
-        parte_intro = {
-            "titulo": "📋 Introdução - Relatório Combinado",
-            "conteudo": f"Este relatório combina análises de duas fontes diferentes:\n\n"
-                       f"1. **{relatorio1.get('cliente', {}).get('nome', 'Relatório 1')}** ({relatorio1.get('tipo', 'tipo não especificado')}) - {relatorio1['data_geracao'].strftime('%d/%m/%Y')}\n"
-                       f"2. **{relatorio2.get('cliente', {}).get('nome', 'Relatório 2')}** ({relatorio2.get('tipo', 'tipo não especificado')}) - {relatorio2['data_geracao'].strftime('%d/%m/%Y')}\n\n"
-                       f"A combinação permite uma visão mais abrangente do desempenho das campanhas em diferentes contextos ou períodos."
-        }
-        relatorio_combinado["partes"].append(parte_intro)
-        texto_completo_md += f"## {parte_intro['titulo']}\n\n{parte_intro['conteudo']}\n\n"
-        
-        # Combinar seções similares
-        secoes_comuns = set()
-        for parte in relatorio1.get("partes", []):
-            secoes_comuns.add(parte["titulo"])
-        for parte in relatorio2.get("partes", []):
-            secoes_comuns.add(parte["titulo"])
-        
-        # Processar cada seção comum
-        for secao in sorted(secoes_comuns):
-            conteudo_relatorio1 = None
-            conteudo_relatorio2 = None
             
-            # Buscar conteúdo desta seção em ambos os relatórios
-            for parte in relatorio1.get("partes", []):
-                if parte["titulo"] == secao:
-                    conteudo_relatorio1 = parte["conteudo"]
-                    break
+            texto_completo_md = "# 📊 Relatório Combinado com Inteligência Artificial\n\n"
             
-            for parte in relatorio2.get("partes", []):
-                if parte["titulo"] == secao:
-                    conteudo_relatorio2 = parte["conteudo"]
-                    break
+            # Introdução combinada gerada por IA
+            prompt_intro = f"""
+            Você é um analista de marketing senior. Crie uma introdução para um relatório combinado que integra insights de dois relatórios diferentes.
+
+            RELATÓRIO 1:
+            {info_relatorio1}
+
+            RELATÓRIO 2:
+            {info_relatorio2}
+
+            Gere uma introdução profissional que:
+            1. Apresente os dois relatórios que estão sendo combinados
+            2. Explique o valor estratégico de combinar estas análises
+            3. Destaque o que os leitores podem esperar deste relatório integrado
+            4. Mantenha um tom profissional e analítico
+
+            Retorne apenas o texto da introdução, sem marcações adicionais.
+            """
             
-            # Criar seção combinada
-            if conteudo_relatorio1 or conteudo_relatorio2:
-                conteudo_combinado = f"## 📊 Análise do Relatório 1\n\n{conteudo_relatorio1 if conteudo_relatorio1 else '*Não disponível neste relatório*'}\n\n"
-                conteudo_combinado += f"## 📊 Análise do Relatório 2\n\n{conteudo_relatorio2 if conteudo_relatorio2 else '*Não disponível neste relatório*'}\n\n"
+            response_intro = client.models.generate_content(
+                model='gemini-2.0-flash',
+                contents=prompt_intro
+            )
+            intro_conteudo = response_intro.text
+            
+            parte_intro = {
+                "titulo": "📋 Introdução - Análise Combinada",
+                "conteudo": intro_conteudo
+            }
+            relatorio_combinado["partes"].append(parte_intro)
+            texto_completo_md += f"## {parte_intro['titulo']}\n\n{parte_intro['conteudo']}\n\n"
+            
+            # Identificar seções comuns
+            secoes_relatorio1 = [p["titulo"] for p in relatorio1.get("partes", [])]
+            secoes_relatorio2 = [p["titulo"] for p in relatorio2.get("partes", [])]
+            secoes_comuns = set(secoes_relatorio1) & set(secoes_relatorio2)
+            
+            # Processar cada seção comum com IA
+            for secao in sorted(secoes_comuns):
+                # Encontrar conteúdos desta seção em ambos os relatórios
+                conteudo_relatorio1 = next((p["conteudo"] for p in relatorio1.get("partes", []) if p["titulo"] == secao), "")
+                conteudo_relatorio2 = next((p["conteudo"] for p in relatorio2.get("partes", []) if p["titulo"] == secao), "")
                 
-                # Adicionar análise de comparação se ambos existirem
-                if conteudo_relatorio1 and conteudo_relatorio2:
-                    conteudo_combinado += "## 🔍 Análise Comparativa\n\n"
-                    conteudo_combinado += "A combinação dessas análises revela insights valiosos sobre as diferenças e semelhanças entre os dois conjuntos de dados.\n\n"
+                prompt_combinacao = f"""
+                Você é um analista de marketing especializado em análise integrada de dados. 
+                Combine as análises da mesma seção de dois relatórios diferentes para criar uma visão unificada.
+
+                SEÇÃO: {secao}
+
+                ANÁLISE DO RELATÓRIO 1:
+                {conteudo_relatorio1}
+
+                ANÁLISE DO RELATÓRIO 2:
+                {conteudo_relatorio2}
+
+                CONTEXTO DOS RELATÓRIOS:
+                Relatório 1: {info_relatorio1}
+                Relatório 2: {info_relatorio2}
+
+                Gere uma análise combinada que:
+                1. Identifique pontos em comum entre as duas análises
+                2. Destaque diferenças significativas e suas possíveis causas
+                3. Crie insights novos que só são possíveis ao combinar os dois relatórios
+                4. Forneça recomendações integradas baseadas na combinação
+                5. Mantenha a estrutura analítica profissional
+
+                Retorne apenas o texto da análise combinada, sem marcações adicionais.
+                """
+                
+                response_combinacao = client.models.generate_content(
+                    model='gemini-2.0-flash',
+                    contents=prompt_combinacao
+                )
+                conteudo_combinado = response_combinacao.text
                 
                 parte_combinada = {
-                    "titulo": f"📊 {secao} (Combinado)",
+                    "titulo": f"🔗 {secao} (Análise Integrada)",
                     "conteudo": conteudo_combinado
                 }
                 
                 relatorio_combinado["partes"].append(parte_combinada)
                 texto_completo_md += f"## {parte_combinada['titulo']}\n\n{parte_combinada['conteudo']}\n\n"
-        
-        # Adicionar seção de insights da combinação
-        parte_insights = {
-            "titulo": "💡 Insights da Combinação",
-            "conteudo": "A combinação de múltiplos relatórios permite identificar:\n\n"
-                       "- Padrões consistentes entre diferentes períodos ou clientes\n"
-                       "- Variações sazonais ou contextuais no desempenho\n"
-                       "- Melhores práticas que funcionam em diferentes cenários\n"
-                       "- Oportunidades de otimização baseadas em aprendizados cruzados\n\n"
-                       "Esta análise integrada oferece uma perspectiva mais holística do desempenho de marketing."
-        }
-        relatorio_combinado["partes"].append(parte_insights)
-        texto_completo_md += f"## {parte_insights['titulo']}\n\n{parte_insights['conteudo']}\n\n"
-        
-        # Adicionar conclusão combinada
-        parte_conclusao = {
-            "titulo": "🎯 Conclusão e Recomendações Combinadas",
-            "conteudo": "Com base na análise combinada dos dois relatórios, recomenda-se:\n\n"
-                       "- Implementar as melhores práticas identificadas em ambos os conjuntos de dados\n"
-                       "- Desconsiderar estratégias que não performaram bem em nenhum dos cenários\n"
-                       "- Testar abordagens que funcionaram em um contexto no outro contexto\n"
-                       "- Desenvolver uma estratégia unificada que incorpore os aprendizados de ambas as análises"
-        }
-        relatorio_combinado["partes"].append(parte_conclusao)
-        texto_completo_md += f"## {parte_conclusao['titulo']}\n\n{parte_conclusao['conteudo']}\n\n"
-        
-        relatorio_combinado["texto_completo"] = texto_completo_md
-        
-        # Salvar no banco de dados
-        relatorio_id = salvar_relatorio_mongodb(relatorio_combinado, usuario_id)
-        return relatorio_id, "Relatório combinado criado com sucesso"
+            
+            # Análise de seções únicas
+            secoes_unicas_relatorio1 = set(secoes_relatorio1) - secoes_comuns
+            secoes_unicas_relatorio2 = set(secoes_relatorio2) - secoes_comuns
+            
+            if secoes_unicas_relatorio1:
+                texto_completo_md += "## 📌 Seções Exclusivas do Relatório 1\n\n"
+                for secao in sorted(secoes_unicas_relatorio1):
+                    conteudo = next((p["conteudo"] for p in relatorio1.get("partes", []) if p["titulo"] == secao), "")
+                    parte_unica = {
+                        "titulo": f"📌 {secao} (Exclusivo Relatório 1)",
+                        "conteudo": f"**Fonte: {relatorio1.get('cliente', {}).get('nome', 'Relatório 1')}**\n\n{conteudo}"
+                    }
+                    relatorio_combinado["partes"].append(parte_unica)
+                    texto_completo_md += f"### {parte_unica['titulo']}\n\n{parte_unica['conteudo']}\n\n"
+            
+            if secoes_unicas_relatorio2:
+                texto_completo_md += "## 📌 Seções Exclusivas do Relatório 2\n\n"
+                for secao in sorted(secoes_unicas_relatorio2):
+                    conteudo = next((p["conteudo"] for p in relatorio2.get("partes", []) if p["titulo"] == secao), "")
+                    parte_unica = {
+                        "titulo": f"📌 {secao} (Exclusivo Relatório 2)",
+                        "conteudo": f"**Fonte: {relatorio2.get('cliente', {}).get('nome', 'Relatório 2')}**\n\n{conteudo}"
+                    }
+                    relatorio_combinado["partes"].append(parte_unica)
+                    texto_completo_md += f"### {parte_unica['titulo']}\n\n{parte_unica['conteudo']}\n\n"
+            
+            # Conclusão integrada gerada por IA
+            prompt_conclusao = f"""
+            Você é um estrategista de marketing. Crie uma conclusão poderosa para o relatório combinado.
+
+            CONTEXTO:
+            Relatório 1: {info_relatorio1}
+            Relatório 2: {info_relatorio2}
+
+            Com base na análise combinada dos dois relatórios, gere uma conclusão que:
+            1. Sintetize os insights mais importantes da análise integrada
+            2. Destaque oportunidades estratégicas identificadas
+            3. Forneça recomendações acionáveis baseadas na combinação dos dados
+            4. Indique próximos passos e métricas para monitorar
+            5. Explique o valor único que esta análise combinada proporciona
+
+            Retorne apenas o texto da conclusão, sem marcações adicionais.
+            """
+            
+            response_conclusao = client.models.generate_content(
+                model='gemini-2.0-flash',
+                contents=prompt_conclusao
+            )
+            conclusao_conteudo = response_conclusao.text
+            
+            parte_conclusao = {
+                "titulo": "🎯 Conclusão e Recomendações Integradas",
+                "conteudo": conclusao_conteudo
+            }
+            relatorio_combinado["partes"].append(parte_conclusao)
+            texto_completo_md += f"## {parte_conclusao['titulo']}\n\n{parte_conclusao['conteudo']}\n\n"
+            
+            relatorio_combinado["texto_completo"] = texto_completo_md
+            
+            # Salvar no banco de dados
+            relatorio_id = salvar_relatorio_mongodb(relatorio_combinado, usuario_id)
+            return relatorio_id, "Relatório combinado com IA criado com sucesso"
         
     except Exception as e:
-        return None, f"Erro ao combinar relatórios: {str(e)}"
-    
-    with tab_cadastro:
-        with st.form("cadastro_form"):
-            nome = st.text_input("Nome Completo")
-            email_cadastro = st.text_input("Email")
-            senha_cadastro = st.text_input("Senha", type="password")
-            confirmar_senha = st.text_input("Confirmar Senha", type="password")
-            submit_cadastro = st.form_submit_button("Criar Conta")
-            
-            if submit_cadastro:
-                if senha_cadastro != confirmar_senha:
-                    st.error("As senhas não coincidem")
-                else:
-                    sucesso, mensagem = criar_usuario(email_cadastro, senha_cadastro, nome)
-                    if sucesso:
-                        st.success(mensagem)
-                    else:
-                        st.error(mensagem)
+        return None, f"Erro ao combinar relatórios com IA: {str(e)}"
 
 def mostrar_app_principal():
     """Mostra o aplicativo principal após o login"""
@@ -1382,28 +1448,34 @@ def mostrar_app_principal():
         if relatorios:
             st.write(f"📚 Você tem {len(relatorios)} relatórios salvos:")
             
-            # Adicionar funcionalidade de combinar relatórios
+            # Adicionar funcionalidade de combinar relatórios com IA
             if len(relatorios) >= 2:
-                st.subheader("🔄 Combinar Relatórios")
+                st.subheader("🧠 Combinar Relatórios com IA")
+                st.info("Selecione dois relatórios para criar uma análise integrada com IA")
+                
                 col1, col2 = st.columns(2)
                 
                 with col1:
                     relatorio1_id = st.selectbox(
                         "Selecione o primeiro relatório",
                         options=[str(r["_id"]) for r in relatorios],
-                        format_func=lambda x: next((r["cliente"].get("nome", "Sem nome") + " - " + r["data_geracao"].strftime("%d/%m/%Y") for r in relatorios if str(r["_id"]) == x), "Relatório")
+                        format_func=lambda x: next((f"{r['cliente'].get('nome', 'Sem nome')} - {r['tipo']} - {r['data_geracao'].strftime('%d/%m/%Y')}" for r in relatorios if str(r["_id"]) == x), "Relatório"),
+                        key="combinar_1"
                     )
                 
                 with col2:
+                    # Filtrar para não selecionar o mesmo relatório duas vezes
+                    opcoes_relatorio2 = [str(r["_id"]) for r in relatorios if str(r["_id"]) != relatorio1_id]
                     relatorio2_id = st.selectbox(
                         "Selecione o segundo relatório",
-                        options=[str(r["_id"]) for r in relatorios if str(r["_id"]) != relatorio1_id],
-                        format_func=lambda x: next((r["cliente"].get("nome", "Sem nome") + " - " + r["data_geracao"].strftime("%d/%m/%Y") for r in relatorios if str(r["_id"]) == x), "Relatório")
+                        options=opcoes_relatorio2,
+                        format_func=lambda x: next((f"{r['cliente'].get('nome', 'Sem nome')} - {r['tipo']} - {r['data_geracao'].strftime('%d/%m/%Y')}" for r in relatorios if str(r["_id"]) == x), "Relatório"),
+                        key="combinar_2"
                     )
                 
-                if st.button("🔄 Combinar Relatórios Selecionados"):
-                    with st.spinner("Combinando relatórios..."):
-                        relatorio_id, mensagem = combinar_relatorios(
+                if st.button("🧠 Combinar com IA", type="primary"):
+                    with st.spinner("Combinando relatórios com IA..."):
+                        relatorio_id, mensagem = combinar_relatorios_com_llm(
                             relatorio1_id, 
                             relatorio2_id, 
                             usuario.get("_id")
@@ -1411,13 +1483,20 @@ def mostrar_app_principal():
                         
                         if relatorio_id:
                             st.success(mensagem)
+                            # Mostrar o relatório combinado imediatamente
+                            relatorio_combinado = obter_relatorio_completo(relatorio_id)
+                            if relatorio_combinado:
+                                for parte in relatorio_combinado.get("partes", []):
+                                    with st.expander(f"**{parte['titulo']}**"):
+                                        st.markdown(parte['conteudo'])
+                            
                             st.rerun()
                         else:
                             st.error(mensagem)
             
+            # Lista de relatórios existente...
             for rel in relatorios:
-                with st.expander(f"📄 {rel.get('cliente', {}).get('nome', 'Sem nome')} - {rel.get('tipo', 'Sem tipo')} - {rel['data_geracao'].strftime('%d/%m/%Y %H:%M')}"):
-                    if st.button("🔍 Ver Relatório Completo", key=f"ver_{rel['_id']}"):
+                with st.expander(f"📄 {rel.get('cliente', {}).get('nome', 'Sem nome')} - {rel.get('tipo', 'Sem tipo')} - {rel['data_geracao'].strftime('%d/%m/%Y %H:%M')}"):if st.button("🔍 Ver Relatório Completo", key=f"ver_{rel['_id']}"):
                         relatorio_completo = obter_relatorio_completo(rel["_id"])
                         if relatorio_completo:
                             for parte in relatorio_completo.get("partes", []):
