@@ -821,6 +821,123 @@ def mostrar_tela_login():
                     st.rerun()
                 else:
                     st.error(mensagem)
+
+# Adicione esta função após as outras funções existentes
+def combinar_relatorios(relatorio1_id, relatorio2_id, usuario_id):
+    """Combina dois relatórios em um único relatório unificado"""
+    try:
+        relatorio1 = obter_relatorio_completo(relatorio1_id)
+        relatorio2 = obter_relatorio_completo(relatorio2_id)
+        
+        if not relatorio1 or not relatorio2:
+            return None, "Um ou ambos os relatórios não foram encontrados"
+        
+        # Criar novo relatório combinado
+        relatorio_combinado = {
+            "tipo": "combinado",
+            "partes": [],
+            "texto_completo": "# Relatório Combinado\n\n",
+            "data_geracao": datetime.now(),
+            "status": "ativo",
+            "usuario_id": usuario_id,
+            "relatorios_originais": [relatorio1_id, relatorio2_id],
+            "cliente": {
+                "nome": f"Combinação: {relatorio1.get('cliente', {}).get('nome', 'Relatório 1')} + {relatorio2.get('cliente', {}).get('nome', 'Relatório 2')}",
+                "id": "combinado"
+            }
+        }
+        
+        # Combinar as partes dos relatórios
+        texto_completo_md = "# Relatório Combinado\n\n"
+        texto_completo_md += f"## 📋 Origem dos Dados\n\n"
+        texto_completo_md += f"- **Relatório 1**: {relatorio1.get('cliente', {}).get('nome', 'Não especificado')} ({relatorio1.get('tipo', 'Não especificado')}) - {relatorio1['data_geracao'].strftime('%d/%m/%Y')}\n"
+        texto_completo_md += f"- **Relatório 2**: {relatorio2.get('cliente', {}).get('nome', 'Não especificado')} ({relatorio2.get('tipo', 'Não especificado')}) - {relatorio2['data_geracao'].strftime('%d/%m/%Y')}\n\n"
+        
+        # Adicionar introdução combinada
+        parte_intro = {
+            "titulo": "📋 Introdução - Relatório Combinado",
+            "conteudo": f"Este relatório combina análises de duas fontes diferentes:\n\n"
+                       f"1. **{relatorio1.get('cliente', {}).get('nome', 'Relatório 1')}** ({relatorio1.get('tipo', 'tipo não especificado')}) - {relatorio1['data_geracao'].strftime('%d/%m/%Y')}\n"
+                       f"2. **{relatorio2.get('cliente', {}).get('nome', 'Relatório 2')}** ({relatorio2.get('tipo', 'tipo não especificado')}) - {relatorio2['data_geracao'].strftime('%d/%m/%Y')}\n\n"
+                       f"A combinação permite uma visão mais abrangente do desempenho das campanhas em diferentes contextos ou períodos."
+        }
+        relatorio_combinado["partes"].append(parte_intro)
+        texto_completo_md += f"## {parte_intro['titulo']}\n\n{parte_intro['conteudo']}\n\n"
+        
+        # Combinar seções similares
+        secoes_comuns = set()
+        for parte in relatorio1.get("partes", []):
+            secoes_comuns.add(parte["titulo"])
+        for parte in relatorio2.get("partes", []):
+            secoes_comuns.add(parte["titulo"])
+        
+        # Processar cada seção comum
+        for secao in sorted(secoes_comuns):
+            conteudo_relatorio1 = None
+            conteudo_relatorio2 = None
+            
+            # Buscar conteúdo desta seção em ambos os relatórios
+            for parte in relatorio1.get("partes", []):
+                if parte["titulo"] == secao:
+                    conteudo_relatorio1 = parte["conteudo"]
+                    break
+            
+            for parte in relatorio2.get("partes", []):
+                if parte["titulo"] == secao:
+                    conteudo_relatorio2 = parte["conteudo"]
+                    break
+            
+            # Criar seção combinada
+            if conteudo_relatorio1 or conteudo_relatorio2:
+                conteudo_combinado = f"## 📊 Análise do Relatório 1\n\n{conteudo_relatorio1 if conteudo_relatorio1 else '*Não disponível neste relatório*'}\n\n"
+                conteudo_combinado += f"## 📊 Análise do Relatório 2\n\n{conteudo_relatorio2 if conteudo_relatorio2 else '*Não disponível neste relatório*'}\n\n"
+                
+                # Adicionar análise de comparação se ambos existirem
+                if conteudo_relatorio1 and conteudo_relatorio2:
+                    conteudo_combinado += "## 🔍 Análise Comparativa\n\n"
+                    conteudo_combinado += "A combinação dessas análises revela insights valiosos sobre as diferenças e semelhanças entre os dois conjuntos de dados.\n\n"
+                
+                parte_combinada = {
+                    "titulo": f"📊 {secao} (Combinado)",
+                    "conteudo": conteudo_combinado
+                }
+                
+                relatorio_combinado["partes"].append(parte_combinada)
+                texto_completo_md += f"## {parte_combinada['titulo']}\n\n{parte_combinada['conteudo']}\n\n"
+        
+        # Adicionar seção de insights da combinação
+        parte_insights = {
+            "titulo": "💡 Insights da Combinação",
+            "conteudo": "A combinação de múltiplos relatórios permite identificar:\n\n"
+                       "- Padrões consistentes entre diferentes períodos ou clientes\n"
+                       "- Variações sazonais ou contextuais no desempenho\n"
+                       "- Melhores práticas que funcionam em diferentes cenários\n"
+                       "- Oportunidades de otimização baseadas em aprendizados cruzados\n\n"
+                       "Esta análise integrada oferece uma perspectiva mais holística do desempenho de marketing."
+        }
+        relatorio_combinado["partes"].append(parte_insights)
+        texto_completo_md += f"## {parte_insights['titulo']}\n\n{parte_insights['conteudo']}\n\n"
+        
+        # Adicionar conclusão combinada
+        parte_conclusao = {
+            "titulo": "🎯 Conclusão e Recomendações Combinadas",
+            "conteudo": "Com base na análise combinada dos dois relatórios, recomenda-se:\n\n"
+                       "- Implementar as melhores práticas identificadas em ambos os conjuntos de dados\n"
+                       "- Desconsiderar estratégias que não performaram bem em nenhum dos cenários\n"
+                       "- Testar abordagens que funcionaram em um contexto no outro contexto\n"
+                       "- Desenvolver uma estratégia unificada que incorpore os aprendizados de ambas as análises"
+        }
+        relatorio_combinado["partes"].append(parte_conclusao)
+        texto_completo_md += f"## {parte_conclusao['titulo']}\n\n{parte_conclusao['conteudo']}\n\n"
+        
+        relatorio_combinado["texto_completo"] = texto_completo_md
+        
+        # Salvar no banco de dados
+        relatorio_id = salvar_relatorio_mongodb(relatorio_combinado, usuario_id)
+        return relatorio_id, "Relatório combinado criado com sucesso"
+        
+    except Exception as e:
+        return None, f"Erro ao combinar relatórios: {str(e)}"
     
     with tab_cadastro:
         with st.form("cadastro_form"):
@@ -1255,6 +1372,8 @@ def mostrar_app_principal():
         else:
             st.info("ℹ️ Por favor, carregue pelo menos o relatório do mês atual para começar a análise")
     
+    
+    
     with tab_relatorios:
         st.subheader("Meus Relatórios Gerados")
         
@@ -1262,6 +1381,39 @@ def mostrar_app_principal():
         
         if relatorios:
             st.write(f"📚 Você tem {len(relatorios)} relatórios salvos:")
+            
+            # Adicionar funcionalidade de combinar relatórios
+            if len(relatorios) >= 2:
+                st.subheader("🔄 Combinar Relatórios")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    relatorio1_id = st.selectbox(
+                        "Selecione o primeiro relatório",
+                        options=[str(r["_id"]) for r in relatorios],
+                        format_func=lambda x: next((r["cliente"].get("nome", "Sem nome") + " - " + r["data_geracao"].strftime("%d/%m/%Y") for r in relatorios if str(r["_id"]) == x), "Relatório")
+                    )
+                
+                with col2:
+                    relatorio2_id = st.selectbox(
+                        "Selecione o segundo relatório",
+                        options=[str(r["_id"]) for r in relatorios if str(r["_id"]) != relatorio1_id],
+                        format_func=lambda x: next((r["cliente"].get("nome", "Sem nome") + " - " + r["data_geracao"].strftime("%d/%m/%Y") for r in relatorios if str(r["_id"]) == x), "Relatório")
+                    )
+                
+                if st.button("🔄 Combinar Relatórios Selecionados"):
+                    with st.spinner("Combinando relatórios..."):
+                        relatorio_id, mensagem = combinar_relatorios(
+                            relatorio1_id, 
+                            relatorio2_id, 
+                            usuario.get("_id")
+                        )
+                        
+                        if relatorio_id:
+                            st.success(mensagem)
+                            st.rerun()
+                        else:
+                            st.error(mensagem)
             
             for rel in relatorios:
                 with st.expander(f"📄 {rel.get('cliente', {}).get('nome', 'Sem nome')} - {rel.get('tipo', 'Sem tipo')} - {rel['data_geracao'].strftime('%d/%m/%Y %H:%M')}"):
@@ -1290,8 +1442,7 @@ def mostrar_app_principal():
                         st.rerun()
         else:
             st.info("Você ainda não gerou nenhum relatório. Use a aba de análise para criar seu primeiro relatório.")
-
-# Ponto de entrada do aplicativo =====================================
+            
 
 def main():
     """Função principal que controla o fluxo do aplicativo"""
