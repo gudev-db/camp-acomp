@@ -1497,7 +1497,7 @@ def mostrar_app_principal():
             # Lista de relatórios existente...
             for rel in relatorios:
                 with st.expander(f"📄 {rel.get('cliente', {}).get('nome', 'Sem nome')} - {rel.get('tipo', 'Sem tipo')} - {rel['data_geracao'].strftime('%d/%m/%Y %H:%M')}"):                        relatorio_completo = obter_relatorio_completo(rel["_id"])
-                    if relatorio_completo:
+                        if relatorio_completo:
                             for parte in relatorio_completo.get("partes", []):
                                 st.markdown(f"### {parte['titulo']}")
                                 st.markdown(parte['conteudo'])
