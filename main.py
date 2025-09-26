@@ -464,7 +464,7 @@ def obter_relatorios_usuario(usuario_id, limite=10):
     try:
         relatorios = list(db_relatorios.find(
             {"usuario_id": usuario_id},
-            {"titulo": 1, "data_geracao": 1, "tipo": 1, "cliente.nome": 1}
+            {"titulo": 1, "data_geracao": 1, "tipo": 1, "cliente.nome": 1, "plataformas": 1}
         ).sort("data_geracao", -1).limit(limite))
         
         return relatorios
@@ -480,6 +480,24 @@ def obter_relatorio_completo(relatorio_id):
     except Exception as e:
         st.error(f"Erro ao buscar relatório: {str(e)}")
         return None
+
+def gerar_nome_relatorio(cliente_info, plataformas, tipo_relatorio):
+    """Gera um nome descritivo para o relatório incluindo cliente e plataformas"""
+    nome_cliente = cliente_info.get('nome', 'ClienteNaoEspecificado').replace(' ', '_')
+    
+    # Formatar plataformas
+    if plataformas:
+        plataformas_str = '_'.join(plataformas).replace(' ', '')
+    else:
+        plataformas_str = 'PlataformaNaoEspecificada'
+    
+    # Formatar tipo de relatório
+    tipo_str = 'tecnico' if tipo_relatorio == 'técnico' else 'gerencial'
+    
+    # Data atual
+    data_str = datetime.now().strftime('%Y%m%d_%H%M')
+    
+    return f"relatorio_{nome_cliente}_{plataformas_str}_{tipo_str}_{data_str}"
 
 def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, cliente_info=None, df_anterior=None, usuario_id=None, plataformas=None):
     """Gera um relatório analítico usando LLM e salva no MongoDB"""
@@ -772,13 +790,17 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
             
             relatorio_completo["texto_completo"] = texto_completo_md
             
+            # Gerar nome do relatório com informações do cliente e plataformas
+            nome_relatorio = gerar_nome_relatorio(cliente_info, plataformas, tipo_relatorio)
+            
             relatorio_data = {
+                "titulo": nome_relatorio,  # Adicionando título descritivo
                 "tipo": tipo_relatorio,
                 "partes": relatorio_completo["partes"],
                 "texto_completo": relatorio_completo["texto_completo"],
                 "metricas_analisadas": colunas_selecionadas,
                 "data_geracao": datetime.now(),
-                "cliente": cliente_info if cliente_info else "Não especificado",
+                "cliente": cliente_info if cliente_info else {"nome": "Não especificado", "id": "", "tags": []},
                 "status": "ativo",
                 "comparativo_mensal": df_anterior is not None,
                 "plataformas": plataformas if plataformas else []
@@ -869,7 +891,8 @@ def combinar_relatorios_com_llm(relatorio1_id, relatorio2_id, usuario_id):
                 "cliente": {
                     "nome": f"Combinação IA: {relatorio1.get('cliente', {}).get('nome', 'Relatório 1')} + {relatorio2.get('cliente', {}).get('nome', 'Relatório 2')}",
                     "id": "combinado-ia"
-                }
+                },
+                "plataformas": list(set(relatorio1.get('plataformas', []) + relatorio2.get('plataformas', [])))
             }
             
             texto_completo_md = "# 📊 Relatório Combinado com Inteligência Artificial\n\n"
@@ -1015,6 +1038,10 @@ def combinar_relatorios_com_llm(relatorio1_id, relatorio2_id, usuario_id):
             texto_completo_md += f"## {parte_conclusao['titulo']}\n\n{parte_conclusao['conteudo']}\n\n"
             
             relatorio_combinado["texto_completo"] = texto_completo_md
+            
+            # Gerar nome descritivo para o relatório combinado
+            nome_combinado = f"relatorio_combinado_ia_{relatorio1.get('cliente', {}).get('nome', 'Relat1').replace(' ', '_')}_{relatorio2.get('cliente', {}).get('nome', 'Relat2').replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M')}"
+            relatorio_combinado["titulo"] = nome_combinado
             
             # Salvar no banco de dados
             relatorio_id = salvar_relatorio_mongodb(relatorio_combinado, usuario_id)
@@ -1428,17 +1455,18 @@ def mostrar_app_principal():
                         with st.expander(f"**{parte['titulo']}**"):
                             st.markdown(parte["conteudo"])
                     
+                    # Gerar nome do arquivo para download
+                    nome_arquivo = gerar_nome_relatorio(cliente_info, st.session_state.plataformas_selecionadas, tipo_relatorio)
+                    
                     st.download_button(
                         label="⬇️ Baixar Relatório Completo (Markdown)",
                         data=relatorio["texto_completo"],
-                        file_name=f"relatorio_campanhas_{datetime.now().strftime('%Y%m%d_%H%M')}.md",
+                        file_name=f"{nome_arquivo}.md",
                         mime="text/markdown",
                         key="download_relatorio_md"
                     )
         else:
             st.info("ℹ️ Por favor, carregue pelo menos o relatório do mês atual para começar a análise")
-    
-    
     
     with tab_relatorios:
         st.subheader("Meus Relatórios Gerados")
@@ -1459,7 +1487,7 @@ def mostrar_app_principal():
                     relatorio1_id = st.selectbox(
                         "Selecione o primeiro relatório",
                         options=[str(r["_id"]) for r in relatorios],
-                        format_func=lambda x: next((f"{r['cliente'].get('nome', 'Sem nome')} - {r['tipo']} - {r['data_geracao'].strftime('%d/%m/%Y')}" for r in relatorios if str(r["_id"]) == x), "Relatório"),
+                        format_func=lambda x: next((f"{r.get('titulo', r.get('cliente', {}).get('nome', 'Sem nome'))} - {r.get('tipo', 'Sem tipo')} - {r['data_geracao'].strftime('%d/%m/%Y')}" for r in relatorios if str(r["_id"]) == x), "Relatório"),
                         key="combinar_1"
                     )
                 
@@ -1469,7 +1497,7 @@ def mostrar_app_principal():
                     relatorio2_id = st.selectbox(
                         "Selecione o segundo relatório",
                         options=opcoes_relatorio2,
-                        format_func=lambda x: next((f"{r['cliente'].get('nome', 'Sem nome')} - {r['tipo']} - {r['data_geracao'].strftime('%d/%m/%Y')}" for r in relatorios if str(r["_id"]) == x), "Relatório"),
+                        format_func=lambda x: next((f"{r.get('titulo', r.get('cliente', {}).get('nome', 'Sem nome'))} - {r.get('tipo', 'Sem tipo')} - {r['data_geracao'].strftime('%d/%m/%Y')}" for r in relatorios if str(r["_id"]) == x), "Relatório"),
                         key="combinar_2"
                     )
                 
@@ -1496,7 +1524,10 @@ def mostrar_app_principal():
             
             # Lista de relatórios existente...
             for rel in relatorios:
-                with st.expander(f"📄 {rel.get('cliente', {}).get('nome', 'Sem nome')} - {rel.get('tipo', 'Sem tipo')} - {rel['data_geracao'].strftime('%d/%m/%Y %H:%M')}"):                        
+                # Usar o título gerado automaticamente se disponível, caso contrário usar o formato antigo
+                titulo_relatorio = rel.get('titulo', f"{rel.get('cliente', {}).get('nome', 'Sem nome')} - {rel.get('tipo', 'Sem tipo')}")
+                
+                with st.expander(f"📄 {titulo_relatorio} - {rel['data_geracao'].strftime('%d/%m/%Y %H:%M')}"):                        
                     relatorio_completo = obter_relatorio_completo(rel["_id"])
                     if relatorio_completo:
                             for parte in relatorio_completo.get("partes", []):
@@ -1504,10 +1535,14 @@ def mostrar_app_principal():
                                 st.markdown(parte['conteudo'])
                     
                     texto_completo = "\n\n".join([f"## {p['titulo']}\n\n{p['conteudo']}" for p in rel.get("partes", [])])
+                    
+                    # Gerar nome do arquivo para download baseado no título do relatório
+                    nome_arquivo = rel.get('titulo', f"relatorio_{rel.get('tipo', 'geral')}_{rel['data_geracao'].strftime('%Y%m%d')}")
+                    
                     st.download_button(
                         label="⬇️ Baixar Relatório",
                         data=texto_completo,
-                        file_name=f"relatorio_{rel.get('tipo', 'geral')}_{rel['data_geracao'].strftime('%Y%m%d')}.md",
+                        file_name=f"{nome_arquivo}.md",
                         mime="text/markdown",
                         key=f"download_{rel['_id']}"
                     )
@@ -1521,7 +1556,6 @@ def mostrar_app_principal():
                         st.rerun()
         else:
             st.info("Você ainda não gerou nenhum relatório. Use a aba de análise para criar seu primeiro relatório.")
-            
 
 def main():
     """Função principal que controla o fluxo do aplicativo"""
