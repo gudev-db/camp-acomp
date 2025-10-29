@@ -18,7 +18,7 @@ from typing import Dict, Any
 # Configuração da página
 st.set_page_config(
     layout="wide",
-    page_title="Analytics de Campanhas",
+    page_title="Agente Performance",
     page_icon="📊"
 )
 
@@ -1624,7 +1624,7 @@ def mostrar_app_principal():
             del st.session_state["autenticado"]
             st.rerun()
     
-    st.title("📊 Analytics Avançado de Campanhas Digitais")
+    st.title("Agente Performance")
     
     # Criar abas principais incluindo o planejamento de mídia
     tab_analise, tab_relatorios, tab_planejamento = st.tabs(["📈 Análise de Campanhas", "🗂 Meus Relatórios", "🎯 Planejamento de Mídia"])
