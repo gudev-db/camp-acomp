@@ -195,8 +195,8 @@ db_clientes = banco["clientes"]
 db_usuarios = banco["usuarios"]
 db_relatorios = banco["relatorios"]
 
-# Verifica se a API key do Gemini está configurada
-gemini_api_key = os.getenv("GEMINI_API_KEY")
+# Verifica se a API key do Gemini está configurada (CORRIGIDO: usando st.secrets)
+gemini_api_key = st.secrets.get("GEM_API_KEY")
 if not gemini_api_key:
     st.warning("⚠️ Chave da API Gemini não encontrada. O relatório avançado será limitado.")
 
@@ -724,7 +724,7 @@ def detectar_tipo_campanha(nome_campanha):
             return 'Discovery'
         elif 'pmax' in nome or 'performance max' in nome:
             return 'Performance Max'
-        elif 'meta' in nome or 'facebook' in nome or 'instagram' in nome or 'social' in nome:
+        elif 'meta' in nome or 'facebook' in file.name.lower() or 'instagram' in nome or 'social' in nome:
             return 'Meta'
         else:
             return 'Outros'
@@ -1731,7 +1731,7 @@ def gerar_relatorio_llm(df, metricas, colunas_selecionadas, tipo_relatorio, clie
                     Apenas Gere recomendações estratégicas com os pontos:
                     - Direcionamentos gerais por plataforma
                     - Priorizações sugeridas
-                    - Ajustes recomendados no mix de canais
+                    - Ajustes recomendados no mix de canals
                     - Sugestões de realocação de orçamento entre plataformas
                     
                     Dados: {dados_para_llm}
@@ -1901,7 +1901,7 @@ def combinar_relatorios_com_llm(relatorio1_id, relatorio2_id, usuario_id):
             1. Apresente os dois relatórios que estão sendo combinados
             2. Explique o valor estratégico de combinar estas análises
             3. Destaque o que os leitores podem esperar deste relatório integrado
-            4. Mantenha um tom profissional и analítico
+            4. Mantenha um tom profissional e analítico
 
             Retorne apenas o texto da introdução, sem marcações adicionais.
             """
